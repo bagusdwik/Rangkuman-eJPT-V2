@@ -298,6 +298,22 @@ db_nmap -sV -sC -O TARGET_IP
 ### Service Enumeration
 
 ```bash
+# ─── FTP ──────────────────────────────────────────────────
+
+use auxiliary/scanner/ftp/ftp_version
+set RHOSTS TARGET_IP
+run
+
+use auxiliary/scanner/ftp/anonymous
+set RHOSTS TARGET_IP
+run
+
+use auxiliary/scanner/ftp/ftp_login
+set RHOSTS TARGET_IP
+set USER_FILE path/to/file.txt
+set PASS_FILE path/to/file.txt
+run
+
 # ─── SMB ──────────────────────────────────────────────────
 
 use auxiliary/scanner/smb/smb_version
@@ -314,22 +330,6 @@ run
 
 use auxiliary/scanner/smb/smb_ms17_010
 set RHOSTS TARGET_IP
-run
-
-# ─── FTP ──────────────────────────────────────────────────
-
-use auxiliary/scanner/ftp/ftp_version
-set RHOSTS TARGET_IP
-run
-
-use auxiliary/scanner/ftp/anonymous
-set RHOSTS TARGET_IP
-run
-
-use auxiliary/scanner/ftp/ftp_login
-set RHOSTS TARGET_IP
-set USER_FILE path/to/file.txt
-set PASS_FILE path/to/file.txt
 run
 
 # ─── SSH ──────────────────────────────────────────────────
@@ -362,15 +362,15 @@ use auxiliary/scanner/http/robots_txt
 set RHOSTS TARGET_IP
 run
 
-# ─── SNMP ─────────────────────────────────────────────────
+# ─── SMTP ─────────────────────────────────────────────────
 
-use auxiliary/scanner/snmp/snmp_login
+use auxiliary/scanner/smtp/smtp_version
 set RHOSTS TARGET_IP
 run
 
-use auxiliary/scanner/snmp/snmp_enum
+use auxiliary/scanner/smtp/smtp_enum
 set RHOSTS TARGET_IP
-set COMMUNITY public
+set USER_FILE path/to/file.txt
 run
 
 # ─── MYSQL ────────────────────────────────────────────────
@@ -383,12 +383,6 @@ use auxiliary/scanner/mysql/mysql_login
 set RHOSTS TARGET_IP
 set USERNAME root
 set PASS_FILE /usr/share/wordlists/rockyou.txt
-run
-
-# ─── RDP ──────────────────────────────────────────────────
-
-use auxiliary/scanner/rdp/rdp_scanner
-set RHOSTS TARGET_IP
 run
 ```
 
