@@ -326,6 +326,12 @@ use auxiliary/scanner/ftp/anonymous
 set RHOSTS TARGET_IP
 run
 
+use auxiliary/scanner/ftp/ftp_login
+set RHOSTS TARGET_IP
+set USER_FILE path/to/file.txt
+set PASS_FILE path/to/file.txt
+run
+
 # ─── SSH ──────────────────────────────────────────────────
 
 use auxiliary/scanner/ssh/ssh_version
