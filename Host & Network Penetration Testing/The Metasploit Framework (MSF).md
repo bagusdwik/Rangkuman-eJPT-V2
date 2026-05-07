@@ -556,6 +556,12 @@ show targets
 check
 ```
 
+### Exploiting A Vulnerable HTTP File Server
+
+```bash
+
+```
+
 ### Exploit Umum di eJPT
 
 ```bash
