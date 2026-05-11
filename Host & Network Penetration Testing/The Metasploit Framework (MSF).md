@@ -677,6 +677,21 @@ sessions -l
 #### Windows Post Exploitation Modules
 
 ```bash
+# Migrate sistem
+use post/windows/gather/win_privs
+set SESSION <id>
+run
+
+# Windows Priv Enumeration
+use post/windows/manage/migrate
+set SESSION <id>
+run
+
+# Enumerate logged on users
+use post/windows/gather/enum_logged_on_users
+set SESSION <id>
+run
+
 # Enumerasi sistem
 use post/windows/gather/enum_system
 set SESSION <id>
@@ -687,10 +702,7 @@ use post/windows/gather/enum_applications
 set SESSION <id>
 run
 
-# Enumerate logged on users
-use post/windows/gather/enum_logged_on_users
-set SESSION <id>
-run
+
 
 # Collect credentials
 use post/windows/gather/credentials/credential_collector
